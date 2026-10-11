@@ -172,6 +172,19 @@ th:first-child, td:first-child { text-align: left; font-family: var(--font-ui); 
 .tag { font-family: var(--font-ui); font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--panel-2); border: 1px solid var(--line); }
 .tag.liq { color: var(--up); border-color: color-mix(in srgb, var(--up) 40%, var(--line)); }
 .tag.pay { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+/* 순위 */
+.board-top { padding: 12px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); }
+.join { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.board-me { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.board-me .spacer { flex: 1; }
+.rk { display: inline-grid; place-items: center; min-width: 24px; height: 22px; padding: 0 6px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); font-family: var(--font-num); font-size: 12px; font-weight: 600; }
+.rk.top { background: var(--lamp); color: var(--lamp-ink); border-color: transparent; }
+tr.mine td { background: color-mix(in srgb, var(--lamp) 10%, transparent); }
+td.chips-cell { text-align: left; font-family: var(--font-ui); }
+#tab-board td:nth-child(2), #tab-board th:nth-child(2) { text-align: left; font-family: var(--font-ui); }
+#tab-board th:nth-child(6) { text-align: left; }
+td.chips-cell .side { margin-right: 4px; }
+.board-note { padding: 10px 12px 12px; }
 td.acts .btn-sm + .btn-sm { margin-left: 4px; }
 td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
 .btn-sm { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; font-size: 12px; font-family: var(--font-ui); }
@@ -227,7 +240,8 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
     <span class="pill" id="feedPill"><i></i><span id="feedTxt">연결 중</span></span>
     <div class="equity">
       <div class="v num" id="eqTop"><span class="muted" style="font-size:12px">총자산</span> 10,000.00 <span class="muted" style="font-size:12px">USDC</span></div>
-      <div class="s num"><span id="eqRet">누적 손익 +0.00</span> <span class="muted" id="payTxt"></span></div>
+      <div class="s num" id="eqRet">누적 손익 +0.00</div>
+      <div class="s muted"><span id="rankTxt"></span><span id="payTxt"></span></div>
     </div>
     <div class="picker" id="picker" role="listbox" hidden></div>
   </div>
@@ -313,6 +327,7 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
     <div class="tabs" role="tablist">
       <button role="tab" data-tab="pos" aria-selected="true">보유 포지션<span class="cnt" id="posCnt">0</span></button>
       <button role="tab" data-tab="hist" aria-selected="false">거래·입금 기록<span class="cnt" id="histCnt">0</span></button>
+      <button role="tab" data-tab="board" aria-selected="false">순위<span class="cnt" id="boardCnt">0</span></button>
       <button role="tab" data-tab="whatif" aria-selected="false">만약 그때 샀다면</button>
     </div>
     <div id="tab-pos">
@@ -337,6 +352,28 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
         <tbody id="histRows"></tbody>
       </table></div>
       <div class="empty" id="histEmpty">끝난 거래와 월급 입금이 여기에 쌓여요.</div>
+    </div>
+    <div id="tab-board" hidden>
+      <div class="board-top">
+        <p class="hint" id="boardOff" hidden>순위 서버를 연결하는 중이에요. 연결되면 여기서 닉네임을 정하고 참가할 수 있어요.</p>
+        <form class="join" id="joinForm" novalidate hidden>
+          <div class="inp"><input id="nickIn" maxlength="12" autocomplete="off" placeholder="닉네임 (한글·영문·숫자 2~12자)" aria-label="닉네임"></div>
+          <button class="wf-run" id="joinBtn" type="submit">순위에 참가하기</button>
+        </form>
+        <p class="hint" id="joinHint" hidden>참가하면 닉네임, 총자산, 수익률, 보유 포지션, 거래·입금 기록이 이 앱을 여는 <b>모든 사람에게 공개</b>돼요. 실명이나 연락처는 닉네임에 넣지 마세요. 참가 정보는 이 브라우저에만 저장돼요.</p>
+        <div class="board-me" id="boardMe" hidden>
+          <span><b id="meNick"></b>(으)로 참가 중</span>
+          <span class="spacer"></span>
+          <div class="seg" id="sortSeg"><button type="button" data-sort="ret" aria-pressed="true">수익률 순</button><button type="button" data-sort="pnl" aria-pressed="false">손익금 순</button></div>
+          <button class="btn-sm" id="leaveBtn" type="button">순위에서 나가기</button>
+        </div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>순위</th><th>닉네임</th><th>수익률</th><th>누적 손익</th><th>총자산</th><th>보유 포지션</th><th>최근 접속</th></tr></thead>
+        <tbody id="boardRows"></tbody>
+      </table></div>
+      <div class="empty" id="boardEmpty">아직 참가한 사람이 없어요.</div>
+      <p class="rules board-note">총자산과 수익률은 각자 보유 포지션을 지금 시세로 계산해서 실시간으로 바뀌어요. 수익률 = (총자산 − 지금까지 받은 돈 전체) ÷ 지금까지 받은 돈 전체. 앱을 안 열고 있는 사람도 그 사이 들어올 월급과 청산을 반영해서 어림해요. 지금은 각자의 브라우저가 알려 주는 값이라, 서버가 거래를 직접 검증하지는 않아요.</p>
     </div>
     <div id="tab-whatif" hidden>
       <div class="whatif">
@@ -379,6 +416,10 @@ const SALARY = 10000;         // 매달 1일 들어오는 가상 월급 (USDC)
 const FEE = 0.0005;           // 수수료 가정 0.05%
 const STORE_KEY = 'mock24.v2';
 const OLD_KEY = 'mock24.v1';  // v0.1 기록 (처음 열 때 새 방식으로 옮겨요)
+// 순위 서버 (Supabase). 비어 있으면 순위 탭에 "연결하는 중"이 떠요.
+// 공개용 키(sb_publishable_...)는 브라우저에 넣어도 되는 키예요. 서버 쪽 규칙은 supabase.sql 에 있어요.
+const BOARD_URL = '';
+const BOARD_KEY = '';
 const MARKETS = [
   { coin: 'BTC', name: '비트코인', group: '코인' },
   { coin: 'ETH', name: '이더리움', group: '코인' },
@@ -464,8 +505,9 @@ function load() {
   return freshState();
 }
 let S = load();
-function save() { if (S.sim) return; try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
-save();
+function persist() { if (S.sim) return; try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
+function save() { persist(); scheduleReport(); }   // 바뀐 게 있으면 순위 서버에도 알려요
+persist();
 let catching = true;   // 자리 비운 시간을 되짚는 동안에는 실시간 판정을 쉬어요 (같은 일을 두 번 처리하지 않게)
 
 // ───────────────────────── 시장 정보 ─────────────────────────
@@ -844,6 +886,7 @@ function renderOrderSummary() {
 // ───────────────────────── 체결·청산 ─────────────────────────
 function logTrade(p, size, exit, reason, at, realized) {
   S.history.unshift({ type: 'trade', id: uid(), coin: p.coin, dir: p.dir, lev: p.lev, mode: p.mode, size, entry: p.entry, exit, reason, at: at || Date.now(), realized });
+  note({ k: 'trade', r: reason, c: p.coin, d: p.dir, sz: sig(size), e: sig(p.entry), px: sig(exit), pnl: r2(realized), m: p.mode, lev: p.lev, at: at || Date.now() });
   if (S.history.length > 500) S.history.length = 500;
 }
 // 포지션 일부(또는 전부)를 price에 닫아요. 실현손익 = 가격 손익 − 닫는 수수료 − 그 몫만큼의 여는 수수료
@@ -902,6 +945,7 @@ function placeOrder(dir) {
         if (v.hp.mode === 'isolated') S.balance -= im;
       }
       S.balance -= fee;
+      note({ k: v.act === '더하기' ? 'add' : 'open', c, d: dir, sz: sig(v.open), px: sig(v.px), m: v.hp.mode, lev: v.hp.lev });
       const np = posOf(c);
       msg.push(v.act === '더하기'
         ? `${sideName(np)}에 더했어요 · 새 평균가 <b>${fPx(np.entry)}</b> · 청산가 <b>${liqTxt(np)}</b>`
@@ -955,6 +999,7 @@ function duePaydays(until) { const out = []; for (let mi = S.paidThrough + 1; mo
 function payday(at) {
   S.balance += SALARY; S.deposited += SALARY; S.paidThrough = monthIdx(at);
   S.history.unshift({ type: 'deposit', id: uid(), at, amount: SALARY });
+  note({ k: 'pay', amt: SALARY, at });
 }
 function checkPayday() {
   if (catching || S.sim) return;
@@ -1033,9 +1078,9 @@ function renderHistory() {
 function renderEquity() {
   const a = account(), pnl = a.equity - S.deposited, ret = pnl / S.deposited;
   $('eqTop').innerHTML = '<span class="muted" style="font-size:12px">총자산</span> ' + fUsd(a.equity) + ' <span class="muted" style="font-size:12px">USDC</span>';
-  $('eqRet').textContent = '누적 손익 ' + fUsd(pnl, true) + ' (' + fPct(ret) + ')'; $('eqRet').className = cls(pnl);
+  $('eqRet').textContent = '누적 손익 ' + fUsd(pnl, true) + ' (' + fPct(ret) + ')'; $('eqRet').className = 's num ' + cls(pnl);
   const nd = new Date(monthStart(S.paidThrough + 1)), dd = Math.ceil((nd - Date.now()) / 864e5);
-  $('payTxt').textContent = S.sim ? '' : `· 다음 월급 ${nd.getMonth() + 1}월 1일${dd > 0 ? ' (D-' + dd + ')' : ''}`;
+  $('payTxt').textContent = S.sim ? '' : `다음 월급 ${nd.getMonth() + 1}월 1일${dd > 0 ? ' (D-' + dd + ')' : ''}`;
   $('cashTxt').textContent = fUsd(S.balance); $('isoTxt').textContent = fUsd(a.isoM);
   $('upnlTxt').textContent = fUsd(a.upnl, true); $('upnlTxt').className = 'num ' + cls(a.upnl);
   $('depTxt').textContent = fUsd(S.deposited);
@@ -1051,9 +1096,159 @@ function onPrices() {
   if (pending) return; pending = true;
   requestAnimationFrame(() => {
     pending = false; const t = performance.now(); if (t - lastFrame < 250) return; lastFrame = t;
-    renderPositions(); renderEquity(); updateLiqLine(); if (!$('picker').hidden) renderPicker();
+    renderPositions(); renderEquity(); updateLiqLine(); renderBoard(); if (!$('picker').hidden) renderPicker();
   });
 }
+
+// ───────────────────────── 순위 (모두에게 공개) ─────────────────────────
+// 각자 브라우저가 "지갑·총 입금·보유 포지션"을 서버에 알리고, 보는 사람의 브라우저가 지금 시세로 모두의 총자산을 계산해요.
+// 그래서 다른 사람이 앱을 닫아 둬도 순위는 시세에 따라 실시간으로 움직여요.
+const boardOn = () => !!(BOARD_URL && BOARD_KEY);
+let me = null;   // { id, nick, secret } 이 브라우저의 참가 정보
+try { me = JSON.parse(localStorage.getItem('mock24.me')) || null; } catch (e) {}
+const board = { rows: new Map(), since: null, loading: false, loaded: false, err: '', sort: 'ret', tick: 0, lastSnap: '', lastSent: 0, sending: false, rt: null, drawn: 0 };
+const r2 = v => Math.round(v * 100) / 100;
+const sig = v => +(+v).toPrecision(10);
+function snapshot() {
+  return { v: 1, bal: r2(S.balance), dep: S.deposited, pt: S.paidThrough,
+    pos: S.positions.map(p => ({ c: p.coin, d: p.dir, sz: sig(p.size), e: sig(p.entry), m: p.mode, mg: r2(p.margin), lev: p.lev })) };
+}
+// 거래·입금 기록을 모아 두었다가 다음 알림 때 함께 보내요 (서버가 서버 시각을 붙여 쌓아요)
+function note(ev) {
+  if (!me || S.sim) return;
+  (S.outbox ||= []).push({ ...ev, at: ev.at || Date.now() });
+  if (S.outbox.length > 400) S.outbox.splice(0, S.outbox.length - 400);
+}
+function boardHeaders() {
+  const h = { apikey: BOARD_KEY, 'Content-Type': 'application/json' };
+  if (BOARD_KEY.startsWith('eyJ')) h.Authorization = 'Bearer ' + BOARD_KEY;   // 예전 방식 anon 키
+  return h;
+}
+async function rpc(fn, body) {
+  const r = await fetch(BOARD_URL + '/rest/v1/rpc/' + fn, { method: 'POST', headers: boardHeaders(), body: JSON.stringify(body) });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error(j?.message || 'HTTP ' + r.status);
+  return j;
+}
+function scheduleReport() { if (!me || S.sim || !boardOn()) return; clearTimeout(board.rt); board.rt = setTimeout(sendReport, 1500); }
+async function sendReport() {
+  if (!me || S.sim || !boardOn() || board.sending) return;
+  const snap = JSON.stringify(snapshot()), out = (S.outbox || []).slice(0, 200);
+  // 바뀐 게 없으면 5분에 한 번만 (최근 접속 표시용)
+  if (snap === board.lastSnap && !out.length && !S.resetPending && Date.now() - board.lastSent < 5 * 60e3) return;
+  board.sending = true;
+  try {
+    await rpc('report', { p_id: me.id, p_secret: me.secret, p_state: JSON.parse(snap), p_events: out, p_reset: !!S.resetPending });
+    board.lastSnap = snap; board.lastSent = Date.now();
+    S.outbox.splice(0, out.length); S.resetPending = false; persist();
+    const row = board.rows.get(me.id); if (row) { row.state = JSON.parse(snap); row.updated_at = new Date().toISOString(); }
+  } catch (e) {
+    if (/auth/.test(e.message)) { forgetMe(); toast('순위 서버에서 내 참가 기록을 찾지 못해서 참가를 해제했어요. 다시 참가할 수 있어요.', 8000); }
+  } finally { board.sending = false; }
+}
+function forgetMe() { me = null; try { localStorage.removeItem('mock24.me'); } catch (e) {} S.outbox = []; persist(); renderBoard(true); }
+async function fetchBoard(full) {
+  if (!boardOn() || board.loading) return;
+  board.loading = true;
+  try {
+    let q = 'players?select=id,nick,created_at,updated_at,resets,state&order=updated_at.asc&limit=2000';
+    if (!full && board.since) q += '&updated_at=gte.' + encodeURIComponent(board.since);
+    const r = await fetch(BOARD_URL + '/rest/v1/' + q, { headers: boardHeaders() });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const rows = await r.json();
+    if (full) board.rows.clear();
+    for (const row of rows) { board.rows.set(row.id, row); if (!board.since || row.updated_at > board.since) board.since = row.updated_at; }
+    board.err = ''; board.loaded = true;
+  } catch (e) { board.err = '순위를 불러오지 못했어요. 잠시 뒤에 다시 시도해요.'; }
+  finally { board.loading = false; }
+  renderBoard(true);
+}
+// 한 사람의 지금 총자산: 그 사이 들어올 월급을 더하고, 지금 시세로 평가손익과 청산 여부를 어림해요
+function valueOf(st) {
+  let pend = 0; for (let mi = (st.pt ?? Infinity) + 1; mi < Infinity && monthStart(mi) <= Date.now() && pend < 120; mi++) pend++;
+  const bal = st.bal + pend * SALARY, dep = (st.dep || START) + pend * SALARY;
+  let U = 0, MM = 0, iso = 0;
+  for (const p of st.pos || []) {
+    const px = mids[p.c], i = info[p.c];
+    if (!px || !i) { if (p.m === 'isolated') iso += p.mg; continue; }
+    const u = (px - p.e) * p.sz * p.d, mm = p.sz * px * mmr(p.c);
+    if (p.m === 'isolated') iso += p.mg + u < mm ? 0 : p.mg + u; else { U += u; MM += mm; }
+  }
+  let cross = bal + U; if (MM > 0 && cross < MM) cross = 0;
+  const eq = cross + iso;
+  return { eq, dep, pnl: eq - dep, ret: (eq - dep) / dep };
+}
+function boardList() {
+  const list = [], live = me && !S.sim;
+  if (live && !board.rows.has(me.id)) board.rows.set(me.id, { id: me.id, nick: me.nick, resets: 0, state: snapshot(), updated_at: new Date().toISOString() });
+  for (const r of board.rows.values()) {
+    const mine = !!(me && r.id === me.id), st = mine && live ? snapshot() : r.state;
+    if (!st || typeof st.bal !== 'number') continue;
+    list.push({ ...valueOf(st), id: r.id, nick: r.nick, resets: r.resets || 0, pos: st.pos || [], mine, seen: mine && live ? Date.now() : Date.parse(r.updated_at) });
+  }
+  const k = board.sort;
+  list.sort((a, b) => b[k] - a[k] || b.pnl - a.pnl);
+  list.forEach((x, i) => x.rank = i + 1);
+  return list;
+}
+const ago = t => { const m = (Date.now() - t) / 6e4; return m < 3 ? '지금' : m < 60 ? Math.floor(m) + '분 전' : m < 1440 ? Math.floor(m / 60) + '시간 전' : Math.floor(m / 1440) + '일 전'; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function renderBoard(force) {
+  const on = boardOn();
+  $('boardOff').hidden = on;
+  $('joinForm').hidden = $('joinHint').hidden = !on || !!me;
+  $('boardMe').hidden = !on || !me;
+  if (me) $('meNick').textContent = me.nick;
+  const t = performance.now(); if (!force && t - board.drawn < 1000) return; board.drawn = t;   // 표는 1초에 한 번까지만
+  if (!on) { $('boardRows').innerHTML = ''; $('boardEmpty').hidden = true; $('rankTxt').textContent = ''; return; }
+  const list = boardList();
+  $('boardCnt').textContent = list.length;
+  const mineRow = list.find(x => x.mine);
+  $('rankTxt').textContent = mineRow ? `순위 ${mineRow.rank}/${list.length}위 · ` : '';
+  if ($('tab-board').hidden) return;   // 탭이 닫혀 있으면 표는 안 그려요
+  $('boardRows').innerHTML = list.map(x => {
+    const chips = x.pos.slice(0, 3).map(p => `<span class="side ${p.d > 0 ? 'L' : 'S'}">${esc(tick(p.c))} ${p.d > 0 ? '롱' : '숏'} ${p.lev}배·${modeName(p.m)}</span>`).join('') + (x.pos.length > 3 ? `<span class="muted">+${x.pos.length - 3}</span>` : '') || '<span class="muted">없음</span>';
+    return `<tr class="${x.mine ? 'mine' : ''}"><td><span class="rk ${x.rank <= 3 ? 'top' : ''}">${x.rank}</span></td>
+      <td><b>${esc(x.nick)}</b>${x.mine ? ' <span class="tag">나</span>' : ''}${x.resets ? ` <span class="muted" title="처음부터 다시 한 횟수">다시 시작 ${x.resets}회</span>` : ''}</td>
+      <td class="${cls(x.ret)}">${fPct(x.ret)}</td><td class="${cls(x.pnl)}">${fUsd(x.pnl, true)}</td><td>${fUsd(x.eq)}</td>
+      <td class="chips-cell">${chips}</td><td class="muted">${ago(x.seen)}</td></tr>`;
+  }).join('');
+  $('boardEmpty').hidden = list.length > 0 && !board.err;
+  $('boardEmpty').textContent = board.err || (board.loaded ? '아직 참가한 사람이 없어요. 첫 번째로 참가해 보세요.' : '순위를 불러오는 중이에요.');
+}
+async function joinBoard(e) {
+  e.preventDefault();
+  const nick = $('nickIn').value.trim();
+  if (!/^[가-힣A-Za-z0-9_]{2,12}$/.test(nick)) return toast('닉네임은 한글·영문·숫자·밑줄로 2~12자예요. 띄어쓰기는 안 돼요.');
+  if (S.sim) return toast('연습 시세에서는 참가할 수 없어요. 실제 시세로 다시 연결해 주세요.');
+  const bytes = crypto.getRandomValues(new Uint8Array(24)), secret = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+  $('joinBtn').disabled = true;
+  try {
+    const id = await rpc('join_game', { p_nick: nick, p_secret: secret, p_state: snapshot() });
+    me = { id, nick, secret }; try { localStorage.setItem('mock24.me', JSON.stringify(me)); } catch (_) {}
+    S.outbox = []; persist();
+    board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now();
+    board.rows.set(id, { id, nick, resets: 0, state: snapshot(), updated_at: new Date().toISOString() });
+    toast(`<b>${esc(nick)}</b>(으)로 순위에 참가했어요. 이제 거래할 때마다 순위가 바뀌어요.`, 6000);
+    $('nickIn').value = ''; renderBoard(true); fetchBoard(true);
+  } catch (err) {
+    const m = err.message;
+    toast(/nick_taken/.test(m) ? '이미 누가 쓰고 있는 닉네임이에요. 다른 닉네임을 골라 주세요.' : /nick_/.test(m) ? '닉네임은 한글·영문·숫자·밑줄로 2~12자예요.' : /full/.test(m) ? '참가 인원이 가득 찼어요.' : '순위 서버에 연결하지 못했어요. 잠시 뒤에 다시 시도해 주세요.');
+  } finally { $('joinBtn').disabled = false; }
+}
+async function leaveBoard() {
+  if (!me) return;
+  try { await rpc('leave_game', { p_id: me.id, p_secret: me.secret }); } catch (e) { if (!/auth/.test(e.message)) return toast('순위 서버에 연결하지 못했어요. 잠시 뒤에 다시 시도해 주세요.'); }
+  board.rows.delete(me.id); forgetMe(); toast('순위에서 나갔어요. 서버에 있던 내 기록을 지웠어요.');
+}
+// 순위 탭을 보고 있으면 10초마다, 아니면 1분마다 바뀐 사람만 받아요. 2분마다 전체를 새로 받아서 나간 사람을 지워요.
+setInterval(() => {
+  if (!boardOn() || document.hidden) return;
+  const n = ++board.tick, open = !$('tab-board').hidden;
+  if (n % 24 === 0) fetchBoard(true);
+  else if (open ? n % 2 === 0 : (me && n % 12 === 0)) fetchBoard(false);
+}, 5000);
+setInterval(sendReport, 60e3);
 
 // ───────────────────────── 만약 그때 샀다면 ─────────────────────────
 function setupWhatIf() {
@@ -1126,11 +1321,22 @@ $('posRows').addEventListener('click', e => { const b = e.target.closest('[data-
 document.querySelector('.tabs').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]'); if (!b) return;
   document.querySelectorAll('.tabs [data-tab]').forEach(x => x.setAttribute('aria-selected', x === b));
-  ['pos', 'hist', 'whatif'].forEach(t => $('tab-' + t).hidden = t !== b.dataset.tab);
+  ['pos', 'hist', 'board', 'whatif'].forEach(t => $('tab-' + t).hidden = t !== b.dataset.tab);
+  if (b.dataset.tab === 'board') { renderBoard(true); fetchBoard(!board.loaded); }
 });
-$('resetBtn').addEventListener('click', () => { $('modal').hidden = false; $('modalNo').focus(); });
+$('joinForm').addEventListener('submit', joinBoard);
+$('sortSeg').addEventListener('click', e => { const b = e.target.closest('[data-sort]'); if (!b) return; board.sort = b.dataset.sort; document.querySelectorAll('#sortSeg button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderBoard(true); });
+let modalAct = null;
+function ask(title, body, yes, fn) { $('modalTitle').textContent = title; $('modalBody').textContent = body; $('modalYes').textContent = yes; modalAct = fn; $('modal').hidden = false; $('modalNo').focus(); }
+$('resetBtn').addEventListener('click', () => ask('처음부터 다시 할까요?', '보유 포지션, 거래 기록, 지금까지 받은 월급이 모두 지워지고 10,000 USDC로 다시 시작해요. 다음 월급은 다음 달 1일에 들어와요.' + (me ? ' 순위에는 "다시 시작" 횟수가 표시돼요.' : ''), '다시 시작', () => {
+  const wasSim = S.sim; S = freshState(); S.sim = wasSim;
+  if (me && !wasSim) { S.resetPending = true; note({ k: 'reset' }); }
+  save(); renderAll(); drawPriceLines(); renderBoard(true);
+  toast(`10,000 USDC로 새로 시작했어요. 다음 월급은 ${new Date(monthStart(S.paidThrough + 1)).getMonth() + 1}월 1일에 들어와요.`);
+}));
+$('leaveBtn').addEventListener('click', () => ask('순위에서 나갈까요?', '서버에 있는 내 닉네임과 기록이 지워져요. 이 브라우저의 거래 기록은 그대로예요. 다시 참가하면 새로 등록돼요.', '나가기', leaveBoard));
 $('modalNo').addEventListener('click', () => { $('modal').hidden = true; });
-$('modalYes').addEventListener('click', () => { const wasSim = S.sim; S = freshState(); S.sim = wasSim; save(); $('modal').hidden = true; renderAll(); drawPriceLines(); toast(`10,000 USDC로 새로 시작했어요. 다음 월급은 ${new Date(monthStart(S.paidThrough + 1)).getMonth() + 1}월 1일에 들어와요.`); });
+$('modalYes').addEventListener('click', () => { $('modal').hidden = true; const f = modalAct; modalAct = null; f && f(); });
 $('retryBtn').addEventListener('click', () => { feed.stop(); feed.mode = 'live'; feed.retry = 0; sim.timer && clearInterval(sim.timer); if (S.sim) S = load(); catching = true; $('netBanner').hidden = true; renderAll(); boot(); });
 $('simBtn').addEventListener('click', goSim);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); else catchUp(); });
@@ -1147,10 +1353,11 @@ async function boot() {
   let saved = 'BTC'; try { saved = localStorage.getItem('mock24.coin') || 'BTC'; } catch (e) {}
   await selectMarket(saved, true);
   await catchUp();
+  if (boardOn()) fetchBoard(true);
 }
-makeChart(); setupWhatIf(); renderAll(); renderQuote();
+makeChart(); setupWhatIf(); renderAll(); renderQuote(); renderBoard(true);
 boot();
-window.__mock24 = { state: () => S, setState: s => { S = s; }, info, mids, cur, feed, markOf, placeOrder, manualClose, checkTriggers, checkPayday, catchUp, crossState, liqOf, account, liqPrice, save, load, isCatching: () => catching };
+window.__mock24 = { board, me: () => me, snapshot, valueOf, fetchBoard, state: () => S, setState: s => { S = s; }, info, mids, cur, feed, markOf, placeOrder, manualClose, checkTriggers, checkPayday, catchUp, crossState, liqOf, account, liqPrice, save, load, isCatching: () => catching };
 })();
 </script>
 </body>
