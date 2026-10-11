@@ -95,6 +95,7 @@ button { cursor: pointer; }
 }
 @media (max-width: 700px) {
   .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "chart" "order" "book" "pos"; padding-inline: 10px; }
+  .top { position: static; }   /* 휴대폰에서는 위 칸이 화면을 가리지 않게 고정하지 않아요 */
   .top-in { padding-inline: 10px; }
   .quote .last { font-size: 19px; }
   .equity { text-align: left; }
@@ -147,6 +148,14 @@ button { cursor: pointer; }
 .go button:disabled { opacity: .45; cursor: not-allowed; }
 .rules { font-size: 11px; color: var(--muted); line-height: 1.5; margin: 0; padding: 0 12px 12px; }
 .rules a { color: inherit; }
+.rules b { color: var(--fg); font-weight: 600; }
+.seg.full { display: grid; grid-template-columns: 1fr 1fr; }
+.seg.full button { padding: 6px 8px; font-size: 13px; }
+.seg button:disabled { cursor: not-allowed; opacity: .55; }
+.hint { margin: 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.lock { margin: 0; font-size: 12px; line-height: 1.5; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--lamp) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--lamp) 40%, var(--line)); }
+.lev input:disabled { opacity: .55; cursor: not-allowed; }
+.ok { color: var(--ok); } .warn-t { color: var(--warn); }
 
 /* 포지션 */
 .tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
@@ -162,6 +171,9 @@ th:first-child, td:first-child { text-align: left; font-family: var(--font-ui); 
 .side.L { background: var(--up-soft); color: var(--up); } .side.S { background: var(--down-soft); color: var(--down); }
 .tag { font-family: var(--font-ui); font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--panel-2); border: 1px solid var(--line); }
 .tag.liq { color: var(--up); border-color: color-mix(in srgb, var(--up) 40%, var(--line)); }
+.tag.pay { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+td.acts .btn-sm + .btn-sm { margin-left: 4px; }
+td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
 .btn-sm { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; font-size: 12px; font-family: var(--font-ui); }
 .empty { padding: 26px 12px; text-align: center; color: var(--muted); }
 .pos-foot { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 10px 12px; font-size: 12px; align-items: center; }
@@ -214,8 +226,8 @@ th:first-child, td:first-child { text-align: left; font-family: var(--font-ui); 
     <div class="spacer"></div>
     <span class="pill" id="feedPill"><i></i><span id="feedTxt">연결 중</span></span>
     <div class="equity">
-      <div class="v num" id="eqTop">10,000.00 <span class="muted" style="font-size:12px">USDC</span></div>
-      <div class="s num" id="eqRet">+0.00%</div>
+      <div class="v num" id="eqTop"><span class="muted" style="font-size:12px">총자산</span> 10,000.00 <span class="muted" style="font-size:12px">USDC</span></div>
+      <div class="s num"><span id="eqRet">누적 손익 +0.00</span> <span class="muted" id="payTxt"></span></div>
     </div>
     <div class="picker" id="picker" role="listbox" hidden></div>
   </div>
@@ -258,6 +270,12 @@ th:first-child, td:first-child { text-align: left; font-family: var(--font-ui); 
   <section class="panel p-order" aria-label="주문">
     <form class="order" id="orderForm" novalidate>
       <div class="field">
+        <div class="lb"><span>증거금 방식</span></div>
+        <div class="seg full" id="modeSeg"><button type="button" data-mode="cross" aria-pressed="true">교차 (Cross)</button><button type="button" data-mode="isolated" aria-pressed="false">격리 (Isolated)</button></div>
+        <p class="hint" id="modeHelp"></p>
+      </div>
+      <p class="lock" id="lockNote" hidden></p>
+      <div class="field">
         <div class="lb"><span>레버리지</span><span class="num" id="levMaxLb">최대 40배</span></div>
         <div class="lev">
           <input type="range" id="levRange" min="1" max="40" step="1" value="10" aria-label="레버리지">
@@ -276,8 +294,8 @@ th:first-child, td:first-child { text-align: left; font-family: var(--font-ui); 
       <div class="summary">
         <div><span>포지션 규모</span><span class="num" id="sumNotional">–</span></div>
         <div><span>예상 수량</span><span class="num" id="sumSize">–</span></div>
-        <div><span>롱 청산가 (예상)</span><span class="num up" id="sumLiqL">–</span></div>
-        <div><span>숏 청산가 (예상)</span><span class="num down" id="sumLiqS">–</span></div>
+        <div><span>롱 누른 뒤 청산가 (예상)</span><span class="num up" id="sumLiqL">–</span></div>
+        <div><span>숏 누른 뒤 청산가 (예상)</span><span class="num down" id="sumLiqS">–</span></div>
         <div><span>수수료 (가정 0.05%)</span><span class="num" id="sumFee">–</span></div>
       </div>
       <div class="go">
@@ -285,35 +303,40 @@ th:first-child, td:first-child { text-align: left; font-family: var(--font-ui); 
         <button type="button" class="short" id="shortBtn">숏 · 내린다<small id="shortPx">–</small></button>
       </div>
     </form>
-    <p class="rules">가상 돈으로만 거래해요. 실제 시세는 <a href="https://hyperliquid.xyz" target="_blank" rel="noopener">Hyperliquid</a> 공개 자료를 따르고, 주식·지수·원자재는 <a href="https://trade.xyz" target="_blank" rel="noopener">trade[XYZ]</a> 시장 가격이에요. 정규장이 닫힌 시간(주말·야간)에는 거래자들이 만드는 가격이라 실제 지수와 달라질 수 있어요. 수수료 0.05%, 펀딩비 미반영, 유지증거금은 최대 레버리지 기준 초기증거금의 절반으로 계산해요.</p>
+    <p class="rules">가상 돈으로만 거래해요. <b>매달 1일 0시</b>(이 기기 시간)에 가상 월급 10,000 USDC가 지갑에 들어오고, 이익과 손실은 그대로 이어져요.</p>
+    <p class="rules">한 종목에는 포지션이 하나예요. 같은 방향 주문은 더해져 평균 진입가가 되고, 반대 방향 주문은 포지션을 줄이거나 뒤집어요.</p>
+    <p class="rules"><b>교차</b>는 지갑 현금 전체가 모든 교차 포지션의 담보라 손익이 서로 엮여요. 교차 자산(지갑 현금 + 교차 평가손익)이 교차 포지션들의 유지증거금 합계보다 작아지면 교차 포지션이 한꺼번에 청산되고 남은 담보도 잃어요. <b>격리</b>는 그 포지션에 넣은 증거금만 잃어요.</p>
+    <p class="rules">실제 시세는 <a href="https://hyperliquid.xyz" target="_blank" rel="noopener">Hyperliquid</a> 공개 자료를 따르고, 주식·지수·원자재는 <a href="https://trade.xyz" target="_blank" rel="noopener">trade[XYZ]</a> 시장 가격이에요. 정규장이 닫힌 시간(주말·야간)에는 거래자들이 만드는 가격이라 실제 지수와 달라질 수 있어요. 수수료 0.05%, 펀딩비 미반영, 유지증거금은 최대 레버리지 기준 초기증거금의 절반으로 계산해요.</p>
   </section>
 
   <section class="panel p-pos" aria-label="내 거래">
     <div class="tabs" role="tablist">
       <button role="tab" data-tab="pos" aria-selected="true">보유 포지션<span class="cnt" id="posCnt">0</span></button>
-      <button role="tab" data-tab="hist" aria-selected="false">거래 기록<span class="cnt" id="histCnt">0</span></button>
+      <button role="tab" data-tab="hist" aria-selected="false">거래·입금 기록<span class="cnt" id="histCnt">0</span></button>
       <button role="tab" data-tab="whatif" aria-selected="false">만약 그때 샀다면</button>
     </div>
     <div id="tab-pos">
       <div class="tbl-wrap"><table>
-        <thead><tr><th>종목</th><th>방향</th><th>규모</th><th>진입가</th><th>현재가</th><th>청산가</th><th>익절 / 손절</th><th>손익 (수익률)</th><th></th></tr></thead>
+        <thead><tr><th>종목</th><th>방향 · 방식</th><th>규모</th><th>평균 진입가</th><th>현재가</th><th>청산가</th><th>증거금</th><th>익절 / 손절</th><th>손익 (수익률)</th><th></th></tr></thead>
         <tbody id="posRows"></tbody>
       </table></div>
-      <div class="empty" id="posEmpty">아직 포지션이 없어요. 오른쪽에서 증거금과 레버리지를 정하고 롱이나 숏을 눌러 보세요.</div>
+      <div class="empty" id="posEmpty">아직 포지션이 없어요. 주문 칸에서 방식(교차·격리), 레버리지, 증거금을 정하고 롱이나 숏을 눌러 보세요.</div>
       <div class="pos-foot">
-        <span>현금 <b class="num" id="cashTxt">–</b></span>
+        <span>지갑 현금 <b class="num" id="cashTxt">–</b></span>
+        <span>격리 증거금 <b class="num" id="isoTxt">–</b></span>
         <span>평가손익 <b class="num" id="upnlTxt">–</b></span>
-        <span>시작 금액 <b class="num" id="startTxt">10,000.00</b></span>
+        <span title="교차 포지션 유지증거금 합계 ÷ 교차 자산. 100%가 되면 교차 포지션이 모두 청산돼요.">교차 위험도 <b class="num" id="riskTxt">–</b></span>
+        <span>총 입금 <b class="num" id="depTxt">10,000.00</b></span>
         <span class="spacer"></span>
         <button class="btn-sm" id="resetBtn">처음부터 다시</button>
       </div>
     </div>
     <div id="tab-hist" hidden>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>종료 시각</th><th>종목</th><th>방향</th><th>규모</th><th>진입 → 종료</th><th>사유</th><th>실현손익</th></tr></thead>
+        <thead><tr><th>시각</th><th>종목</th><th>방향 · 방식</th><th>규모</th><th>진입 → 종료</th><th>사유</th><th>실현손익 · 입금</th></tr></thead>
         <tbody id="histRows"></tbody>
       </table></div>
-      <div class="empty" id="histEmpty">끝난 거래가 여기에 쌓여요.</div>
+      <div class="empty" id="histEmpty">끝난 거래와 월급 입금이 여기에 쌓여요.</div>
     </div>
     <div id="tab-whatif" hidden>
       <div class="whatif">
@@ -338,7 +361,7 @@ th:first-child, td:first-child { text-align: left; font-family: var(--font-ui); 
 <div class="modal-bg" id="modal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <h3 id="modalTitle">처음부터 다시 할까요?</h3>
-    <p id="modalBody">보유 포지션과 거래 기록이 모두 지워지고 가상 잔고가 10,000 USDC로 돌아가요.</p>
+    <p id="modalBody">보유 포지션, 거래 기록, 지금까지 받은 월급이 모두 지워지고 10,000 USDC로 다시 시작해요. 다음 월급은 다음 달 1일에 들어와요.</p>
     <div class="acts"><button id="modalNo">취소</button><button class="danger" id="modalYes">다시 시작</button></div>
   </div>
 </div>
@@ -351,9 +374,11 @@ th:first-child, td:first-child { text-align: left; font-family: var(--font-ui); 
 // ───────────────────────── 설정 ─────────────────────────
 const API = 'https://api.hyperliquid.xyz/info';
 const WS_URL = 'wss://api.hyperliquid.xyz/ws';
-const START = 10000;          // 시작 가상 잔고 (USDC)
+const START = 10000;          // 처음 받는 가상 돈 (USDC)
+const SALARY = 10000;         // 매달 1일 들어오는 가상 월급 (USDC)
 const FEE = 0.0005;           // 수수료 가정 0.05%
-const STORE_KEY = 'mock24.v1';
+const STORE_KEY = 'mock24.v2';
+const OLD_KEY = 'mock24.v1';  // v0.1 기록 (처음 열 때 새 방식으로 옮겨요)
 const MARKETS = [
   { coin: 'BTC', name: '비트코인', group: '코인' },
   { coin: 'ETH', name: '이더리움', group: '코인' },
@@ -397,13 +422,51 @@ function toast(html, ms = 4200) {
 }
 
 // ───────────────────────── 저장 ─────────────────────────
-function freshState() { return { balance: START, start: START, positions: [], history: [], lastSeen: Date.now(), createdAt: Date.now() }; }
+// balance = 지갑 현금. 교차 포지션 전부의 담보예요. 격리 증거금은 지갑에서 빠져나가 그 포지션에만 묶여요.
+// 포지션은 종목마다 하나 (실제 DEX처럼 같은 방향은 더해지고, 반대 방향은 줄거나 뒤집혀요).
+// paidThrough = 마지막으로 월급을 준 달 (연×12+월)
+const monthIdx = t => { const d = new Date(t); return d.getFullYear() * 12 + d.getMonth(); };
+const monthStart = mi => new Date(Math.floor(mi / 12), mi % 12, 1).getTime();
+function freshState() {
+  const now = Date.now();
+  return { v: 2, balance: START, deposited: START, paidThrough: monthIdx(now), positions: [], lastSeen: now, createdAt: now,
+    history: [{ type: 'deposit', id: uid(), at: now, amount: START, first: true }] };
+}
+// v0.1 기록(주문마다 따로 격리)을 새 방식으로: 같은 종목·같은 방향은 격리 포지션 하나로 합쳐요.
+function migrate(o) {
+  const s = freshState();
+  s.balance = o.balance; s.deposited = o.start || START;
+  s.createdAt = o.createdAt || s.createdAt; s.lastSeen = o.lastSeen || s.lastSeen; s.paidThrough = monthIdx(s.createdAt);
+  s.history = (o.history || []).map(h => ({ type: 'trade', id: uid(), coin: h.coin, dir: h.dir, lev: h.lev, mode: 'isolated', size: h.size, entry: h.entry, exit: h.exit, reason: h.reason, at: h.closedAt, realized: h.realized }));
+  s.history.push({ type: 'deposit', id: uid(), at: s.createdAt, amount: s.deposited, first: true });
+  const by = {};
+  for (const p of o.positions || []) (by[p.coin] ||= []).push(p);
+  for (const [coin, ps] of Object.entries(by)) {
+    if (BY_COIN[coin] && ps.every(p => p.dir === ps[0].dir)) {
+      const size = ps.reduce((a, p) => a + p.size, 0), margin = ps.reduce((a, p) => a + p.margin, 0);
+      const entry = ps.reduce((a, p) => a + p.entry * p.size, 0) / size;
+      s.positions.push({ id: uid(), coin, dir: ps[0].dir, size, entry, lev: Math.max(1, Math.round(size * entry / margin)), mode: 'isolated', margin,
+        tp: ps.length === 1 ? ps[0].tp : null, sl: ps.length === 1 ? ps[0].sl : null,
+        fees: ps.reduce((a, p) => a + (p.openFee || 0), 0), openedAt: Math.min(...ps.map(p => p.openedAt)) });
+    } else {
+      // 한 종목에 롱·숏이 함께 있던 경우: 증거금을 돌려주고 정리해요 (여는 수수료만 손실)
+      for (const p of ps) {
+        s.balance += p.margin;
+        s.history.unshift({ type: 'trade', id: uid(), coin, dir: p.dir, lev: p.lev, mode: 'isolated', size: p.size, entry: p.entry, exit: p.entry, reason: '방식 변경 정리', at: Date.now(), realized: -(p.openFee || 0) });
+      }
+    }
+  }
+  return s;
+}
 function load() {
-  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && typeof s.balance === 'number') return s; } catch (e) {}
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.v === 2) return s; } catch (e) {}
+  try { const o = JSON.parse(localStorage.getItem(OLD_KEY)); if (o && typeof o.balance === 'number') return migrate(o); } catch (e) {}
   return freshState();
 }
 let S = load();
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
+function save() { if (S.sim) return; try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
+save();
+let catching = true;   // 자리 비운 시간을 되짚는 동안에는 실시간 판정을 쉬어요 (같은 일을 두 번 처리하지 않게)
 
 // ───────────────────────── 시장 정보 ─────────────────────────
 const info = {};   // coin -> { maxLev, szDec, mark, prev, vol, funding, oracle }
@@ -534,14 +597,17 @@ const sim = {
 };
 function goSim() {
   feed.stop(); feed.mode = 'sim';
-  $('netBanner').hidden = true; setFeed('sim'); sim.start(); selectMarket(cur.coin, true);
-  toast('연습용 가짜 시세로 바꿨어요. 실제 시장과 무관한 무작위 가격이에요.');
+  // 가짜 가격이 진짜 기록을 청산하지 않도록, 연습 시세에서는 저장되지 않는 별도 계좌를 써요
+  S = freshState(); S.sim = true; catching = false;
+  $('netBanner').hidden = true; setFeed('sim'); sim.start(); selectMarket(cur.coin, true); renderAll();
+  toast('연습용 가짜 시세로 바꿨어요. 실제 시장과 무관한 무작위 가격이고, 여기서 한 거래는 저장되지 않아요.', 6000);
 }
 
 // ───────────────────────── 차트 ─────────────────────────
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let chart, series, wfChart, wfSeries, wfBase;
 const priceLines = [];
+let liqLine = null;
 function chartColors() {
   return { layout: { background: { type: 'solid', color: css('--panel') }, textColor: css('--muted'), fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 11 },
     grid: { vertLines: { color: css('--line') }, horzLines: { color: css('--line') } },
@@ -561,11 +627,18 @@ const toBar = k => ({ time: Math.floor(k.t / 1000), open: k.o, high: k.h, low: k
 function drawPriceLines() {
   if (!series) return;
   while (priceLines.length) series.removePriceLine(priceLines.pop());
-  for (const p of S.positions.filter(p => p.coin === cur.coin)) {
-    const col = p.dir > 0 ? css('--up') : css('--down');
-    priceLines.push(series.createPriceLine({ price: p.entry, color: col, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: (p.dir > 0 ? '롱 ' : '숏 ') + p.lev + '배 진입' }));
-    priceLines.push(series.createPriceLine({ price: p.liq, color: css('--warn'), lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: '청산' }));
-  }
+  liqLine = null;
+  const p = posOf(cur.coin); if (!p) return;
+  const col = p.dir > 0 ? css('--up') : css('--down');
+  priceLines.push(series.createPriceLine({ price: p.entry, color: col, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: (p.dir > 0 ? '롱 ' : '숏 ') + p.lev + '배 평균' }));
+  const lq = liqOf(p);
+  if (lq > 0) { liqLine = series.createPriceLine({ price: lq, color: css('--warn'), lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: p.mode === 'cross' ? '청산(교차·약)' : '청산' }); priceLines.push(liqLine); }
+}
+// 교차 청산가는 다른 종목 가격과 지갑에 따라 계속 움직여요
+function updateLiqLine() {
+  const p = posOf(cur.coin); if (!p || p.mode !== 'cross') return;
+  const lq = liqOf(p);
+  if (liqLine && lq > 0) liqLine.applyOptions({ price: lq }); else if (!liqLine !== !(lq > 0)) drawPriceLines();
 }
 
 // ───────────────────────── 현재 종목 ─────────────────────────
@@ -672,12 +745,43 @@ function renderPicker() {
   }).join('')).join('');
 }
 
-// ───────────────────────── 주문 계산 ─────────────────────────
+// ───────────────────────── 증거금 계산 ─────────────────────────
+// 유지증거금 비율 = 최대 레버리지 기준 초기증거금의 절반 (Hyperliquid 문서 "The maintenance margin is half of the initial margin at max leverage")
 const mmr = coin => 1 / (2 * info[coin].maxLev);
+const posOf = coin => S.positions.find(p => p.coin === coin);
+const upnlAt = (p, px, size = p.size) => (px - p.entry) * size * p.dir;
+const sideName = p => BY_COIN[p.coin].name + ' ' + (p.dir > 0 ? '롱' : '숏');
+const modeName = m => m === 'cross' ? '교차' : '격리';
 function liqPrice(dir, entry, margin, size, coin) {
   const r = mmr(coin), per = margin / size;
   return dir > 0 ? Math.max(0, (entry - per) / (1 - r)) : (entry + per) / (1 + r);
 }
+// 교차 묶음: 지갑 현금 + 교차 평가손익 = 교차 자산(E). E가 유지증거금 합계(MM)보다 작아지면 교차 포지션 전부 청산.
+function crossState(pxOf, skip) {
+  let U = 0, MM = 0, IM = 0, n = 0, miss = 0;
+  for (const p of S.positions) {
+    if (p.mode !== 'cross' || p.coin === skip) continue;
+    const px = pxOf(p.coin); if (!px) { miss++; continue; }
+    n++; U += upnlAt(p, px); MM += p.size * px * mmr(p.coin); IM += p.size * px / p.lev;
+  }
+  return { n, miss, U, MM, IM, E: S.balance + U };
+}
+// 청산가. 격리 = 넣은 증거금 기준. 교차 = 다른 교차 포지션 가격이 지금 그대로일 때 이 종목이 어디까지 가면 묶음 전체가 청산되는지.
+function liqOf(p) {
+  if (p.mode === 'isolated') return liqPrice(p.dir, p.entry, p.margin, p.size, p.coin);
+  const o = crossState(markOf, p.coin), r = mmr(p.coin), s = p.size;
+  const x = p.dir > 0 ? (o.MM - o.E + p.entry * s) / (s * (1 - r)) : (o.E - o.MM + p.entry * s) / (s * (1 + r));
+  return x > 0 ? x : 0;   // 0 = 이 종목만으로는 청산되지 않음
+}
+const liqTxt = p => { const lq = liqOf(p); return lq > 0 ? (p.mode === 'cross' ? '약 ' : '') + fPx(lq) : '없음'; };
+function account() {
+  const cr = crossState(markOf);
+  let isoM = 0, isoU = 0;
+  for (const p of S.positions) if (p.mode === 'isolated') { isoM += p.margin; const px = markOf(p.coin); if (px) isoU += upnlAt(p, px); }
+  return { cr, isoM, upnl: cr.U + isoU, equity: cr.E + isoM + isoU, avail: Math.max(0, cr.E - cr.IM) };
+}
+
+// ───────────────────────── 주문 계산 ─────────────────────────
 // 호가창을 따라 내려가며 체결가(평균) 계산 → 실제 거래처럼 미끄러짐이 생겨요
 function fillPrice(dir, notional) {
   const b = cur.book, ref = markOf(cur.coin);
@@ -689,143 +793,266 @@ function fillPrice(dir, notional) {
   if (left > 0) { const p = lv.at(-1)[0]; qty += left / p; cost += left; }
   return cost / qty;
 }
+let uiMode = 'cross';
+try { if (localStorage.getItem('mock24.mode') === 'isolated') uiMode = 'isolated'; } catch (e) {}
+const orderMode = () => posOf(cur.coin)?.mode || uiMode;
 function syncLeverage() {
-  const mx = info[cur.coin].maxLev;
+  const mx = info[cur.coin].maxLev, p = posOf(cur.coin);
   $('levRange').max = mx; $('levNum').max = mx; $('levMaxLb').textContent = '최대 ' + mx + '배';
-  const v = clamp(+$('levNum').value || 1, 1, mx); $('levNum').value = v; $('levRange').value = v;
+  const v = p ? p.lev : clamp(+$('levNum').value || 1, 1, mx); $('levNum').value = v; $('levRange').value = v;
   renderOrderSummary();
 }
 function orderInputs() {
-  const lev = clamp(Math.round(+$('levNum').value || 1), 1, info[cur.coin].maxLev);
+  const p = posOf(cur.coin), lev = p ? p.lev : clamp(Math.round(+$('levNum').value || 1), 1, info[cur.coin].maxLev);
   const margin = Math.max(0, +$('margin').value || 0);
-  return { lev, margin, notional: margin * lev };
+  return { lev, margin, notional: margin * lev, mode: orderMode() };
+}
+// 주문하면 이 종목 포지션이 어떻게 되는지 미리 계산 (실제로 바꾸지는 않아요)
+function preview(dir) {
+  const { lev, margin, notional, mode } = orderInputs(), c = cur.coin, p = posOf(c);
+  const px = fillPrice(dir, notional), q = notional / px, dust = sz => sz * px < 1;   // 1 USDC 미만 자투리는 남기지 않아요
+  if (!p) return { px, act: '진입', close: 0, open: q, hp: { coin: c, dir, size: q, entry: px, lev, mode, margin: mode === 'isolated' ? margin : 0 } };
+  if (p.dir === dir) return { px, act: '더하기', close: 0, open: q, hp: { ...p, size: p.size + q, entry: (p.entry * p.size + px * q) / (p.size + q), margin: p.mode === 'isolated' ? p.margin + margin : 0 } };
+  if (q < p.size && !dust(p.size - q)) return { px, act: '줄이기', close: q, open: 0, hp: { ...p, size: p.size - q, margin: p.margin * (1 - q / p.size) } };
+  const rest = q - p.size;
+  if (dust(rest)) return { px, act: '종료', close: p.size, open: 0, hp: null };
+  return { px, act: '뒤집기', close: p.size, open: rest, hp: { coin: c, dir, size: rest, entry: px, lev: p.lev, mode: p.mode, margin: p.mode === 'isolated' ? rest * px / p.lev : 0 } };
+}
+function renderMode() {
+  const p = posOf(cur.coin), m = orderMode();
+  document.querySelectorAll('#modeSeg button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.mode === m); b.disabled = !!p; });
+  $('levRange').disabled = $('levNum').disabled = !!p;
+  $('modeHelp').textContent = m === 'cross'
+    ? '교차: 지갑 현금 전체가 모든 교차 포지션의 담보예요. 손익이 서로 엮여서 한 포지션의 손실을 현금과 다른 포지션 이익이 버텨 주지만, 청산되면 교차 포지션이 한꺼번에 정리돼요.'
+    : '격리: 이 포지션에 넣은 증거금만 걸어요. 청산돼도 그 돈만 잃고, 지갑과 다른 포지션은 그대로예요.';
+  $('lockNote').hidden = !p;
+  if (p) $('lockNote').innerHTML = `이미 <b>${sideName(p)} ${modeName(p.mode)} ${p.lev}배</b>가 있어요. 같은 방향 주문은 더해지고, 반대 방향 주문은 줄이거나 뒤집어요. 방식과 레버리지는 이 포지션을 닫은 뒤 바꿀 수 있어요.`;
 }
 function renderOrderSummary() {
-  const { lev, margin, notional } = orderInputs(), c = cur.coin, ref = markOf(c);
-  $('availLb').textContent = '사용 가능 ' + fUsd(S.balance);
+  renderMode();
+  const { margin, notional } = orderInputs(), c = cur.coin, ref = markOf(c);
+  $('availLb').textContent = '사용 가능 ' + fUsd(account().avail);
   if (!ref || !margin) { ['sumNotional', 'sumSize', 'sumLiqL', 'sumLiqS', 'sumFee', 'longPx', 'shortPx'].forEach(k => $(k).textContent = '–'); return; }
-  const pL = fillPrice(1, notional), pS = fillPrice(-1, notional);
-  const size = notional / ref;
+  const L = preview(1), Sh = preview(-1), after = v => v.hp ? liqTxt(v.hp) : '포지션 닫힘';
   $('sumNotional').textContent = fUsd(notional) + ' USDC';
-  $('sumSize').textContent = size.toFixed(info[c].szDec) + ' ' + tick(c);
-  $('sumLiqL').textContent = fPx(liqPrice(1, pL, margin, notional / pL, c));
-  $('sumLiqS').textContent = fPx(liqPrice(-1, pS, margin, notional / pS, c));
+  $('sumSize').textContent = (notional / ref).toFixed(info[c].szDec) + ' ' + tick(c);
+  $('sumLiqL').textContent = after(L); $('sumLiqS').textContent = after(Sh);
   $('sumFee').textContent = fUsd(notional * FEE) + ' USDC';
-  $('longPx').textContent = '약 ' + fPx(pL); $('shortPx').textContent = '약 ' + fPx(pS);
+  $('longPx').textContent = L.act + ' · 약 ' + fPx(L.px); $('shortPx').textContent = Sh.act + ' · 약 ' + fPx(Sh.px);
 }
 
-function openPosition(dir) {
-  const { lev, margin, notional } = orderInputs(), c = cur.coin;
-  if (!markOf(c)) return toast('아직 가격을 받지 못했어요. 잠시 뒤에 다시 눌러 주세요.');
-  if (margin < 1) return toast('증거금을 1 USDC 이상 넣어 주세요.');
-  const fee = notional * FEE;
-  if (margin + fee > S.balance + 1e-9) return toast('잔고가 부족해요. 증거금을 줄이거나 포지션을 정리해 주세요.');
-  const entry = fillPrice(dir, notional), size = notional / entry, liq = liqPrice(dir, entry, margin, size, c);
-  const tp = +$('tp').value || null, sl = +$('sl').value || null;
-  if (tp && (dir > 0 ? tp <= entry : tp >= entry)) return toast(dir > 0 ? '롱의 익절가는 지금 가격보다 높아야 해요.' : '숏의 익절가는 지금 가격보다 낮아야 해요.');
-  if (sl && (dir > 0 ? sl >= entry : sl <= entry)) return toast(dir > 0 ? '롱의 손절가는 지금 가격보다 낮아야 해요.' : '숏의 손절가는 지금 가격보다 높아야 해요.');
-  if (sl && (dir > 0 ? sl <= liq : sl >= liq)) toast('손절가가 청산가보다 멀어서, 손절 전에 청산될 수 있어요.');
-  S.balance -= margin + fee;
-  S.positions.push({ id: uid(), coin: c, dir, lev, margin, size, entry, liq, tp, sl, openFee: fee, openedAt: Date.now() });
-  save(); $('tp').value = ''; $('sl').value = '';
-  toast(`${BY_COIN[c].name} <b>${dir > 0 ? '롱' : '숏'} ${lev}배</b> 진입 · 평균가 <b>${fPx(entry)}</b> · 청산가 <b>${fPx(liq)}</b>`);
-  renderAll(); drawPriceLines();
+// ───────────────────────── 체결·청산 ─────────────────────────
+function logTrade(p, size, exit, reason, at, realized) {
+  S.history.unshift({ type: 'trade', id: uid(), coin: p.coin, dir: p.dir, lev: p.lev, mode: p.mode, size, entry: p.entry, exit, reason, at: at || Date.now(), realized });
+  if (S.history.length > 500) S.history.length = 500;
 }
-function closePosition(p, price, reason, at) {
-  const i = S.positions.indexOf(p); if (i < 0) return;
-  S.positions.splice(i, 1);
-  let pnl, fee = 0, back;
-  if (reason === '청산') { pnl = -p.margin; back = 0; }
-  else { pnl = (price - p.entry) * p.size * p.dir; fee = p.size * price * FEE; back = Math.max(0, p.margin + pnl - fee); }
-  S.balance += back;
-  const realized = back - p.margin - p.openFee;
-  S.history.unshift({ ...p, exit: price, reason, closedAt: at || Date.now(), realized });
-  S.history.length = Math.min(S.history.length, 300);
-  save();
+// 포지션 일부(또는 전부)를 price에 닫아요. 실현손익 = 가격 손익 − 닫는 수수료 − 그 몫만큼의 여는 수수료
+function reducePosition(p, q, price, reason, at) {
+  const all = q >= p.size * (1 - 1e-9), f = all ? 1 : q / p.size;
+  q = all ? p.size : q;
+  const pnl = upnlAt(p, price, q), fee = q * price * FEE, feeShare = p.fees * f;
+  let realized;
+  if (p.mode === 'isolated') { const m = p.margin * f, back = Math.max(0, m + pnl - fee); S.balance += back; p.margin -= m; realized = back - m - feeShare; }
+  else { S.balance += pnl - fee; realized = pnl - fee - feeShare; }
+  p.fees -= feeShare; p.size -= q;
+  if (all) S.positions.splice(S.positions.indexOf(p), 1);
+  logTrade(p, q, price, reason, at, realized);
   return realized;
 }
-function manualClose(id) {
+// 격리 청산: 그 포지션 증거금만 잃어요
+function liquidateIso(p, price, at) {
+  S.positions.splice(S.positions.indexOf(p), 1);
+  logTrade(p, p.size, price, '청산', at, -p.margin - p.fees);
+}
+// 교차 청산: 교차 포지션이 한꺼번에 정리되고 남은 교차 담보(유지증거금 몫)도 잃어요. 지갑 현금은 0이 돼요.
+function liquidateCross(pxOf, at) {
+  const cr = crossState(pxOf), list = S.positions.filter(p => p.mode === 'cross');
+  for (const p of list) {
+    const px = pxOf(p.coin) || p.entry, mm = p.size * px * mmr(p.coin);
+    const realized = upnlAt(p, px) - p.fees - cr.E * (cr.MM ? mm / cr.MM : 1 / list.length);
+    S.positions.splice(S.positions.indexOf(p), 1);
+    logTrade(p, p.size, px, '교차 청산', at, realized);
+  }
+  S.balance = 0;
+  return list.map(sideName).join(', ');
+}
+
+function placeOrder(dir) {
+  const c = cur.coin;
+  if (!markOf(c)) return toast('아직 가격을 받지 못했어요. 잠시 뒤에 다시 눌러 주세요.');
+  if (orderInputs().margin < 1) return toast('증거금을 1 USDC 이상 넣어 주세요.');
+  const v = preview(dir), p = posOf(c);
+  const tp = +$('tp').value || null, sl = +$('sl').value || null, nd = v.hp?.dir;
+  if (v.hp && tp && (nd > 0 ? tp <= v.px : tp >= v.px)) return toast(nd > 0 ? '롱의 익절가는 지금 가격보다 높아야 해요.' : '숏의 익절가는 지금 가격보다 낮아야 해요.');
+  if (v.hp && sl && (nd > 0 ? sl >= v.px : sl <= v.px)) return toast(nd > 0 ? '롱의 손절가는 지금 가격보다 낮아야 해요.' : '숏의 손절가는 지금 가격보다 높아야 해요.');
+  const openNtl = v.open * v.px, need = v.open ? openNtl / v.hp.lev + openNtl * FEE : 0;
+  if (v.act !== '뒤집기' && need > account().avail + 1e-9) return toast('사용 가능한 돈이 부족해요. 증거금을 줄이거나 포지션을 정리해 주세요.');
+  const msg = [];
+  if (v.close) {
+    const name = sideName(p), r = reducePosition(p, v.close, v.px, '반대 주문');
+    msg.push(`${name} ${v.act === '줄이기' ? '일부 정리' : '종료'} · 실현손익 <b>${fUsd(r, true)}</b> USDC`);
+  }
+  if (v.open) {
+    const im = openNtl / v.hp.lev, fee = openNtl * FEE;
+    if (im + fee > account().avail + 1e-9) msg.push('뒤집는 주문은 사용 가능한 돈이 부족해서 넣지 않았어요.');
+    else {
+      if (v.act === '더하기') { p.entry = v.hp.entry; p.size = v.hp.size; p.fees += fee; if (p.mode === 'isolated') { p.margin += im; S.balance -= im; } }
+      else {
+        S.positions.push({ id: uid(), coin: c, dir, size: v.open, entry: v.px, lev: v.hp.lev, mode: v.hp.mode, margin: v.hp.mode === 'isolated' ? im : 0, tp: null, sl: null, fees: fee, openedAt: Date.now() });
+        if (v.hp.mode === 'isolated') S.balance -= im;
+      }
+      S.balance -= fee;
+      const np = posOf(c);
+      msg.push(v.act === '더하기'
+        ? `${sideName(np)}에 더했어요 · 새 평균가 <b>${fPx(np.entry)}</b> · 청산가 <b>${liqTxt(np)}</b>`
+        : `${sideName(np)} <b>${modeName(np.mode)} ${np.lev}배</b> 진입 · 평균가 <b>${fPx(np.entry)}</b> · 청산가 <b>${liqTxt(np)}</b>`);
+    }
+  }
+  const np = posOf(c);
+  if (np) { if (tp) np.tp = tp; if (sl) np.sl = sl; if (np.sl && liqOf(np) > 0 && (np.dir > 0 ? np.sl <= liqOf(np) : np.sl >= liqOf(np))) msg.push('손절가가 청산가보다 멀어서, 손절 전에 청산될 수 있어요.'); }
+  save(); $('tp').value = ''; $('sl').value = '';
+  toast(msg.join('<br>'), 6000);
+  renderAll(); drawPriceLines();
+}
+function manualClose(id, f) {
   const p = S.positions.find(x => x.id === id); if (!p) return;
-  let px = markOf(p.coin);
-  if (p.coin === cur.coin && cur.book) px = fillPrice(-p.dir, p.size * px);
-  const r = closePosition(p, px, '직접 종료');
-  toast(`${BY_COIN[p.coin].name} ${p.dir > 0 ? '롱' : '숏'} 종료 · 실현손익 <b>${fUsd(r, true)}</b> USDC`);
+  const q = f >= 1 ? p.size : p.size * f;
+  let px = markOf(p.coin); if (!px) return toast('아직 가격을 받지 못했어요.');
+  if (p.coin === cur.coin && cur.book) px = fillPrice(-p.dir, q * px);
+  const name = sideName(p), r = reducePosition(p, q, px, f >= 1 ? '직접 종료' : '절반 종료');
+  save();
+  toast(`${name} ${f >= 1 ? '종료' : '절반 정리'} · 실현손익 <b>${fUsd(r, true)}</b> USDC`);
   renderAll(); drawPriceLines();
 }
 
-// 가격이 바뀔 때마다 익절·손절·청산 확인
+// 가격이 바뀔 때마다 청산·손절·익절 확인
 function checkTriggers() {
+  if (catching) return false;
   let changed = false;
   for (const p of [...S.positions]) {
     const px = markOf(p.coin); if (!px) continue;
-    const hitLiq = p.dir > 0 ? px <= p.liq : px >= p.liq;
-    const hitSl = p.sl && (p.dir > 0 ? px <= p.sl : px >= p.sl);
-    const hitTp = p.tp && (p.dir > 0 ? px >= p.tp : px <= p.tp);
-    const name = BY_COIN[p.coin].name + ' ' + (p.dir > 0 ? '롱' : '숏');
-    if (hitLiq) { closePosition(p, p.liq, '청산'); toast(`<b>청산</b> · ${name} ${p.lev}배 · 증거금 ${fUsd(p.margin)} USDC를 잃었어요`, 7000); changed = true; }
-    else if (hitSl) { const r = closePosition(p, p.sl, '손절'); toast(`손절 · ${name} · <b>${fUsd(r, true)}</b> USDC`); changed = true; }
-    else if (hitTp) { const r = closePosition(p, p.tp, '익절'); toast(`익절 · ${name} · <b>${fUsd(r, true)}</b> USDC`); changed = true; }
+    const name = sideName(p);
+    if (p.mode === 'isolated') {
+      const lq = liqOf(p);
+      if (p.dir > 0 ? px <= lq : px >= lq) { liquidateIso(p, lq); toast(`<b>청산</b> · ${name} 격리 ${p.lev}배 · 증거금 ${fUsd(p.margin)} USDC를 잃었어요`, 8000); changed = true; continue; }
+    }
+    if (p.sl && (p.dir > 0 ? px <= p.sl : px >= p.sl)) { const r = reducePosition(p, p.size, p.sl, '손절'); toast(`손절 · ${name} · <b>${fUsd(r, true)}</b> USDC`); changed = true; }
+    else if (p.tp && (p.dir > 0 ? px >= p.tp : px <= p.tp)) { const r = reducePosition(p, p.size, p.tp, '익절'); toast(`익절 · ${name} · <b>${fUsd(r, true)}</b> USDC`); changed = true; }
   }
-  if (changed) drawPriceLines();
+  const cr = crossState(markOf);
+  if (cr.n && !cr.miss && cr.E < cr.MM) {
+    const names = liquidateCross(markOf);
+    toast(`<b>교차 청산</b> · ${names}<br>교차 자산이 유지증거금보다 작아져서 교차 포지션이 한꺼번에 정리됐어요. 격리 포지션은 그대로예요.`, 10000);
+    changed = true;
+  }
+  if (changed) { save(); renderAll(); drawPriceLines(); }
   return changed;
 }
 
-// 자리를 비운 동안의 가격 흐름을 되짚어 익절·손절·청산 처리 (서버 없이 24시간 돌아가는 효과)
-async function catchUp() {
-  const now = Date.now(), done = [];
-  for (const p of [...S.positions]) {
-    const from = Math.max(p.openedAt, S.lastSeen || p.openedAt) - 60e3;
-    const gap = now - from; if (gap < 90e3) continue;
-    const iv = gap < 3 * 864e5 ? '1m' : gap < 16 * 864e5 ? '5m' : '1h';
-    let ks; try { ks = await candles(p.coin, iv, from, now); } catch (e) { continue; }
-    for (const k of ks) {
-      const worst = p.dir > 0 ? k.l : k.h, best = p.dir > 0 ? k.h : k.l;
-      const name = BY_COIN[p.coin].name + ' ' + (p.dir > 0 ? '롱' : '숏');
-      if (p.dir > 0 ? worst <= p.liq : worst >= p.liq) { closePosition(p, p.liq, '청산', k.t); done.push(`${name} 청산 (${fTime(k.t)})`); break; }
-      if (p.sl && (p.dir > 0 ? worst <= p.sl : worst >= p.sl)) { closePosition(p, p.sl, '손절', k.t); done.push(`${name} 손절 (${fTime(k.t)})`); break; }
-      if (p.tp && (p.dir > 0 ? best >= p.tp : best <= p.tp)) { closePosition(p, p.tp, '익절', k.t); done.push(`${name} 익절 (${fTime(k.t)})`); break; }
-    }
-  }
-  if (done.length) toast('자리를 비운 사이에 정리된 포지션이 있어요.<br>' + done.join('<br>'), 10000);
-  save(); renderAll(); drawPriceLines();
+// ───────────────────────── 월급 ─────────────────────────
+// 매달 1일 0시(이 기기 시간)에 지갑으로 10,000 USDC. 손익은 그대로 이어지고 입금만 쌓여요.
+function duePaydays(until) { const out = []; for (let mi = S.paidThrough + 1; monthStart(mi) <= until; mi++) out.push(monthStart(mi)); return out; }
+function payday(at) {
+  S.balance += SALARY; S.deposited += SALARY; S.paidThrough = monthIdx(at);
+  S.history.unshift({ type: 'deposit', id: uid(), at, amount: SALARY });
+}
+function checkPayday() {
+  if (catching || S.sim) return;
+  const due = duePaydays(Date.now()); if (!due.length) return;
+  due.forEach(payday); save(); renderAll(); drawPriceLines();
+  toast(`<b>월급날이에요!</b> 가상 월급 <b>${fUsd(SALARY * due.length)}</b> USDC가 지갑에 들어왔어요.`, 9000);
 }
 
+// 자리를 비운 동안을 시간 순서대로 되짚어요: 월급 입금, 격리 청산, 손절·익절, 교차 묶음 청산 (서버 없이 24시간 돌아가는 효과)
+async function catchUp() {
+  if (S.sim) { catching = false; return; }
+  catching = true;
+  const now = Date.now(), from = Math.min(S.lastSeen || now, now), notes = [];
+  const pays = duePaydays(now); let pi = 0;
+  const pay = t => { while (pi < pays.length && pays[pi] <= t) payday(pays[pi++]); };
+  const coins = [...new Set(S.positions.map(p => p.coin))];
+  if (coins.length && now - from >= 90e3) {
+    const gap = now - from;
+    const iv = gap < 3 * 864e5 ? '1m' : gap < 16 * 864e5 ? '5m' : gap < 200 * 864e5 ? '1h' : '1d';
+    const at = {}, lastC = {};
+    await Promise.all(coins.map(async c => {
+      let ks = []; try { ks = await candles(c, iv, from - 60e3, now); } catch (e) {}
+      at[c] = new Map(ks.map(k => [k.t, k])); lastC[c] = ks[0]?.o;
+    }));
+    const times = [...new Set(coins.flatMap(c => [...at[c].keys()]))].sort((a, b) => a - b);
+    for (const t of times) {
+      pay(t);
+      for (const p of [...S.positions]) {
+        const k = at[p.coin]?.get(t); if (!k || p.openedAt > t + IV_MS[iv]) continue;
+        const worst = p.dir > 0 ? k.l : k.h, best = p.dir > 0 ? k.h : k.l, name = sideName(p);
+        if (p.mode === 'isolated') { const lq = liqOf(p); if (p.dir > 0 ? worst <= lq : worst >= lq) { liquidateIso(p, lq, t); notes.push(`${name} 격리 청산 (${fTime(t)})`); continue; } }
+        if (p.sl && (p.dir > 0 ? worst <= p.sl : worst >= p.sl)) { reducePosition(p, p.size, p.sl, '손절', t); notes.push(`${name} 손절 (${fTime(t)})`); continue; }
+        if (p.tp && (p.dir > 0 ? best >= p.tp : best <= p.tp)) { reducePosition(p, p.size, p.tp, '익절', t); notes.push(`${name} 익절 (${fTime(t)})`); }
+      }
+      // 교차 묶음은 이 시간대에 종목마다 가장 불리했던 가격으로 확인해요 (보수적으로)
+      const worstOf = c => { const k = at[c]?.get(t), p = posOf(c); return k && p ? (p.dir > 0 ? k.l : k.h) : lastC[c]; };
+      const cr = crossState(worstOf);
+      if (cr.n && cr.E < cr.MM) notes.push(`교차 청산: ${liquidateCross(worstOf, t)} (${fTime(t)})`);
+      coins.forEach(c => { const k = at[c]?.get(t); if (k) lastC[c] = k.c; });
+    }
+  }
+  pay(now);
+  S.lastSeen = now; catching = false;
+  save(); renderAll(); drawPriceLines();
+  if (pays.length) notes.unshift(`<b>월급 ${pays.length}번</b> · +${fUsd(SALARY * pays.length)} USDC`);
+  if (notes.length) toast('자리를 비운 사이에 일어난 일이에요.<br>' + notes.join('<br>'), 12000);
+}
+
+// ───────────────────────── 내 거래 화면 ─────────────────────────
 function renderPositions() {
   const rows = S.positions.map(p => {
-    const px = markOf(p.coin), pnl = (px - p.entry) * p.size * p.dir, roe = pnl / p.margin;
+    const px = markOf(p.coin), pnl = px ? upnlAt(p, px) : NaN;
+    const base = p.mode === 'isolated' ? p.margin : p.size * p.entry / p.lev;
+    const mTxt = p.mode === 'isolated' ? fUsd(p.margin) : fUsd(p.size * (px || p.entry) / p.lev);
     return `<tr><td><b>${BY_COIN[p.coin].name}</b> <span class="muted">${tick(p.coin)}</span></td>
-      <td><span class="side ${p.dir > 0 ? 'L' : 'S'}">${p.dir > 0 ? '롱' : '숏'} ${p.lev}배</span></td>
-      <td>${fUsd(p.size * px)}</td><td>${fPx(p.entry)}</td><td>${fPx(px)}</td><td>${fPx(p.liq)}</td>
+      <td><span class="side ${p.dir > 0 ? 'L' : 'S'}">${p.dir > 0 ? '롱' : '숏'} ${p.lev}배</span> <span class="tag">${modeName(p.mode)}</span></td>
+      <td>${fUsd(p.size * (px || p.entry))}</td><td>${fPx(p.entry)}</td><td>${fPx(px)}</td>
+      <td${p.mode === 'cross' ? ' title="다른 교차 포지션 가격과 지갑 현금이 지금 그대로일 때의 값이에요"' : ''}>${liqTxt(p)}</td>
+      <td>${mTxt}</td>
       <td>${p.tp ? fPx(p.tp) : '–'} / ${p.sl ? fPx(p.sl) : '–'}</td>
-      <td class="${cls(pnl)}">${fUsd(pnl, true)} (${fPct(roe)})</td>
-      <td><button class="btn-sm" data-close="${p.id}">시장가 종료</button></td></tr>`;
+      <td class="${cls(pnl)}">${fUsd(pnl, true)} (${fPct(pnl / base)})</td>
+      <td class="acts"><button class="btn-sm" data-close="${p.id}" data-f="0.5">절반</button><button class="btn-sm" data-close="${p.id}" data-f="1">전체 종료</button></td></tr>`;
   });
   $('posRows').innerHTML = rows.join(''); $('posEmpty').hidden = rows.length > 0; $('posCnt').textContent = S.positions.length;
 }
 function renderHistory() {
-  const rows = S.history.map(h => `<tr><td>${fTime(h.closedAt)}</td><td>${BY_COIN[h.coin]?.name || tick(h.coin)}</td>
-    <td><span class="side ${h.dir > 0 ? 'L' : 'S'}">${h.dir > 0 ? '롱' : '숏'} ${h.lev}배</span></td><td>${fUsd(h.size * h.entry)}</td>
-    <td>${fPx(h.entry)} → ${fPx(h.exit)}</td><td><span class="tag ${h.reason === '청산' ? 'liq' : ''}">${h.reason}</span></td>
-    <td class="${cls(h.realized)}">${fUsd(h.realized, true)}</td></tr>`);
-  $('histRows').innerHTML = rows.join(''); $('histEmpty').hidden = rows.length > 0; $('histCnt').textContent = S.history.length;
+  const list = [...S.history].sort((a, b) => b.at - a.at);
+  const rows = list.map(h => h.type === 'deposit'
+    ? `<tr><td>${fTime(h.at)}</td><td><b>${h.first ? '시작 자금' : '월급'}</b></td><td class="note" colspan="3">${h.first ? '처음 받은 가상 돈' : (new Date(h.at).getMonth() + 1) + '월 가상 월급'}</td><td><span class="tag pay">입금</span></td><td class="ok">+${fUsd(h.amount)}</td></tr>`
+    : `<tr><td>${fTime(h.at)}</td><td>${BY_COIN[h.coin]?.name || tick(h.coin)}</td>
+      <td><span class="side ${h.dir > 0 ? 'L' : 'S'}">${h.dir > 0 ? '롱' : '숏'} ${h.lev}배</span> <span class="tag">${modeName(h.mode)}</span></td><td>${fUsd(h.size * h.entry)}</td>
+      <td>${fPx(h.entry)} → ${fPx(h.exit)}</td><td><span class="tag ${/청산/.test(h.reason) ? 'liq' : ''}">${h.reason}</span></td>
+      <td class="${cls(h.realized)}">${fUsd(h.realized, true)}</td></tr>`);
+  $('histRows').innerHTML = rows.join(''); $('histEmpty').hidden = rows.length > 0; $('histCnt').textContent = list.length;
 }
 function renderEquity() {
-  let upnl = 0, locked = 0;
-  for (const p of S.positions) { const px = markOf(p.coin); if (px) upnl += (px - p.entry) * p.size * p.dir; locked += p.margin; }
-  const eq = S.balance + locked + upnl, ret = eq / S.start - 1;
-  $('eqTop').innerHTML = fUsd(eq) + ' <span class="muted" style="font-size:12px">USDC</span>';
-  $('eqRet').textContent = '시작 대비 ' + fPct(ret); $('eqRet').className = 's num ' + cls(ret);
-  $('cashTxt').textContent = fUsd(S.balance); $('upnlTxt').textContent = fUsd(upnl, true); $('upnlTxt').className = 'num ' + cls(upnl);
-  $('startTxt').textContent = fUsd(S.start);
+  const a = account(), pnl = a.equity - S.deposited, ret = pnl / S.deposited;
+  $('eqTop').innerHTML = '<span class="muted" style="font-size:12px">총자산</span> ' + fUsd(a.equity) + ' <span class="muted" style="font-size:12px">USDC</span>';
+  $('eqRet').textContent = '누적 손익 ' + fUsd(pnl, true) + ' (' + fPct(ret) + ')'; $('eqRet').className = cls(pnl);
+  const nd = new Date(monthStart(S.paidThrough + 1)), dd = Math.ceil((nd - Date.now()) / 864e5);
+  $('payTxt').textContent = S.sim ? '' : `· 다음 월급 ${nd.getMonth() + 1}월 1일${dd > 0 ? ' (D-' + dd + ')' : ''}`;
+  $('cashTxt').textContent = fUsd(S.balance); $('isoTxt').textContent = fUsd(a.isoM);
+  $('upnlTxt').textContent = fUsd(a.upnl, true); $('upnlTxt').className = 'num ' + cls(a.upnl);
+  $('depTxt').textContent = fUsd(S.deposited);
+  const r = a.cr.n ? (a.cr.E > 0 ? a.cr.MM / a.cr.E : 1) : NaN;
+  $('riskTxt').textContent = isFinite(r) ? (r * 100).toFixed(1) + '%' : '–';
+  $('riskTxt').className = 'num ' + (r >= .8 ? 'up' : r >= .5 ? 'warn-t' : '');
 }
 function renderAll() { renderPositions(); renderHistory(); renderEquity(); renderOrderSummary(); }
 
 let lastFrame = 0, pending = false;
 function onPrices() {
-  S.lastSeen = Date.now();
-  checkTriggers();
+  if (!catching) { S.lastSeen = Date.now(); checkTriggers(); }
   if (pending) return; pending = true;
-  requestAnimationFrame(() => { pending = false; const t = performance.now(); if (t - lastFrame < 250) return; lastFrame = t; renderPositions(); renderEquity(); if (!$('picker').hidden) renderPicker(); });
+  requestAnimationFrame(() => {
+    pending = false; const t = performance.now(); if (t - lastFrame < 250) return; lastFrame = t;
+    renderPositions(); renderEquity(); updateLiqLine(); if (!$('picker').hidden) renderPicker();
+  });
 }
 
 // ───────────────────────── 만약 그때 샀다면 ─────────────────────────
@@ -891,10 +1118,11 @@ $('levRange').addEventListener('input', () => { $('levNum').value = $('levRange'
 $('levNum').addEventListener('input', () => { $('levRange').value = $('levNum').value; renderOrderSummary(); });
 $('levNum').addEventListener('change', syncLeverage);
 $('margin').addEventListener('input', renderOrderSummary);
-$('pctChips').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; const lev = orderInputs().lev; const max = S.balance / (1 + lev * FEE); $('margin').value = Math.floor(max * +b.dataset.p * 100) / 100; renderOrderSummary(); });
-$('longBtn').addEventListener('click', () => openPosition(1));
-$('shortBtn').addEventListener('click', () => openPosition(-1));
-$('posRows').addEventListener('click', e => { const b = e.target.closest('[data-close]'); if (b) manualClose(b.dataset.close); });
+$('pctChips').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; const lev = orderInputs().lev; const max = account().avail / (1 + lev * FEE); $('margin').value = Math.floor(max * +b.dataset.p * 100) / 100; renderOrderSummary(); });
+$('modeSeg').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b || b.disabled) return; uiMode = b.dataset.mode; try { localStorage.setItem('mock24.mode', uiMode); } catch (_) {} renderOrderSummary(); });
+$('longBtn').addEventListener('click', () => placeOrder(1));
+$('shortBtn').addEventListener('click', () => placeOrder(-1));
+$('posRows').addEventListener('click', e => { const b = e.target.closest('[data-close]'); if (b) manualClose(b.dataset.close, +b.dataset.f); });
 document.querySelector('.tabs').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]'); if (!b) return;
   document.querySelectorAll('.tabs [data-tab]').forEach(x => x.setAttribute('aria-selected', x === b));
@@ -902,11 +1130,12 @@ document.querySelector('.tabs').addEventListener('click', e => {
 });
 $('resetBtn').addEventListener('click', () => { $('modal').hidden = false; $('modalNo').focus(); });
 $('modalNo').addEventListener('click', () => { $('modal').hidden = true; });
-$('modalYes').addEventListener('click', () => { S = freshState(); save(); $('modal').hidden = true; tradeBuf.length = 0; renderAll(); drawPriceLines(); toast('가상 잔고 10,000 USDC로 새로 시작했어요.'); });
-$('retryBtn').addEventListener('click', () => { feed.stop(); feed.mode = 'live'; feed.retry = 0; sim.timer && clearInterval(sim.timer); $('netBanner').hidden = true; boot(); });
+$('modalYes').addEventListener('click', () => { const wasSim = S.sim; S = freshState(); S.sim = wasSim; save(); $('modal').hidden = true; renderAll(); drawPriceLines(); toast(`10,000 USDC로 새로 시작했어요. 다음 월급은 ${new Date(monthStart(S.paidThrough + 1)).getMonth() + 1}월 1일에 들어와요.`); });
+$('retryBtn').addEventListener('click', () => { feed.stop(); feed.mode = 'live'; feed.retry = 0; sim.timer && clearInterval(sim.timer); if (S.sim) S = load(); catching = true; $('netBanner').hidden = true; renderAll(); boot(); });
 $('simBtn').addEventListener('click', goSim);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); else catchUp(); });
 setInterval(save, 15000);
+setInterval(checkPayday, 30000);
 window.addEventListener('resize', () => renderBook());
 
 // ───────────────────────── 시작 ─────────────────────────
@@ -921,7 +1150,7 @@ async function boot() {
 }
 makeChart(); setupWhatIf(); renderAll(); renderQuote();
 boot();
-window.__mock24 = { state: () => S, info, mids, cur, openPosition, checkTriggers, liqPrice };
+window.__mock24 = { state: () => S, setState: s => { S = s; }, info, mids, cur, feed, markOf, placeOrder, manualClose, checkTriggers, checkPayday, catchUp, crossState, liqOf, account, liqPrice, save, load, isCatching: () => catching };
 })();
 </script>
 </body>
