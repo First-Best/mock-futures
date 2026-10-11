@@ -229,19 +229,41 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
 #wfChart { height: 220px; }
 
 /* 알림·확인창 */
-.toasts { position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; z-index: 50; max-width: min(360px, calc(100vw - 24px)); }
+.toasts { position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; z-index: 80; max-width: min(360px, calc(100vw - 24px)); }
 .toast { background: var(--fg); color: var(--bg); border-radius: 9px; padding: 10px 12px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 .toast b { font-family: var(--font-num); }
 .toast-act { margin-left: 10px; background: none; border: 1px solid currentColor; color: inherit; border-radius: 6px; padding: 1px 8px; font-size: 12px; }
 .book .row[data-px] { cursor: pointer; }
 .book .row[data-px]:hover { background: var(--panel-2); }
 .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; z-index: 60; padding: 16px; }
+#modal { z-index: 70; }   /* 확인 창은 계정 창 위에 */
 .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; max-width: 380px; width: 100%; display: grid; gap: 12px; }
 .modal h3 { margin: 0; font-size: 16px; }
 .modal p { margin: 0; color: var(--muted); }
 .modal .acts { display: flex; justify-content: flex-end; gap: 8px; }
 .modal .acts button { border-radius: 8px; padding: 8px 14px; border: 1px solid var(--line); background: var(--panel-2); }
 .modal .acts .danger { background: var(--up); color: #fff; border-color: transparent; }
+/* 로그인·내 계정 */
+.acct-btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: 12.5px; font-weight: 600; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.acct-btn.in { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.acct-btn.in::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 6px; vertical-align: 1px; }
+@media (max-width: 700px) { .top-in > * { order: 3; } .top-in > .brand { order: 0; } .top-in > .mkt-btn { order: 1; } .top-in > .acct-btn { order: 2; margin-left: auto; } }
+.acct { position: relative; max-height: calc(100dvh - 32px); overflow-y: auto; grid-template-columns: minmax(0, 1fr); }
+.acct form, .acct .view, .acct .box { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+.acct label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.acct .inp input { font-family: var(--font-ui); font-size: 16px; }
+.acct .main { background: var(--lamp); color: var(--lamp-ink); border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 700; font-size: 15px; }
+.acct .main:disabled { opacity: .6; }
+.acct .links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; }
+.acct .err { color: var(--up); font-size: 12.5px; margin: 0; }
+.acct .err:empty { display: none; }
+.acct .box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
+.acct .box h4 { margin: 0; font-size: 13px; }
+.acct .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.acct .row .btn-sm { padding: 6px 11px; font-size: 13px; }
+.linkish { background: none; border: 0; padding: 4px 0; color: var(--fg); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; font-family: var(--font-ui); }
+.modal-x { position: absolute; top: 8px; right: 8px; background: none; border: 0; font-size: 20px; line-height: 1; padding: 6px 9px; color: var(--muted); }
+.auth-join { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (prefers-reduced-motion: no-preference) { .toast { animation: tin .18s ease-out; } @keyframes tin { from { transform: translateY(6px); opacity: 0; } } }
 </style>
 </head>
@@ -250,6 +272,7 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
 <header class="top">
   <div class="top-in" style="position:relative">
     <div class="brand"><span class="sign">24/7</span><span>24시 모의선물</span></div>
+    <button class="acct-btn" id="acctBtn" type="button" hidden>로그인</button>
     <button class="mkt-btn" id="mktBtn" aria-haspopup="listbox" aria-expanded="false">
       <b id="mktName">비트코인</b><span class="tk" id="mktTk">BTC</span><span class="car">▼</span>
     </button>
@@ -427,11 +450,17 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
           <div class="inp"><input id="nickIn" maxlength="12" autocomplete="off" placeholder="닉네임 (한글·영문·숫자 2~12자)" aria-label="닉네임"></div>
           <button class="wf-run" id="joinBtn" type="submit">순위에 참가하기</button>
         </form>
+        <div class="auth-join" id="authJoin" hidden>
+          <button class="wf-run" id="joinAuthBtn" type="button">가입하고 순위에 참가하기</button>
+          <button class="btn-sm" id="loginAuthBtn" type="button">이미 아이디가 있어요 (로그인)</button>
+        </div>
         <p class="hint" id="joinHint" hidden>참가하면 닉네임, 총자산, 수익률, 보유 포지션(익절·손절 포함), 예약 주문, 거래·입금 기록이 이 앱을 여는 <b>모든 사람에게 공개</b>돼요. 실명이나 연락처는 닉네임에 넣지 마세요. 참가하면 '다른 기기에서 이어하기' 링크로 휴대폰·컴퓨터를 오가며 같은 기록으로 할 수 있어요.</p>
         <div class="board-me" id="boardMe" hidden>
           <span><b id="meNick"></b>(으)로 참가 중</span>
           <span class="spacer"></span>
           <div class="seg" id="sortSeg"><button type="button" data-sort="ret" aria-pressed="true">수익률 순</button><button type="button" data-sort="pnl" aria-pressed="false">손익금 순</button></div>
+          <button class="btn-sm" id="addLoginBtn" type="button" hidden>아이디 만들기</button>
+          <button class="btn-sm" id="acctBtn2" type="button" hidden>내 계정</button>
           <button class="btn-sm" id="moveBtn2" type="button">다른 기기에서 이어하기</button>
           <button class="btn-sm" id="leaveBtn" type="button">순위에서 나가기</button>
         </div>
@@ -469,6 +498,53 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
     <p id="modalBody"></p>
     <div class="inp" id="modalLinkBox" hidden><input id="modalLink" readonly aria-label="이어하기 링크"></div>
     <div class="acts"><button id="modalNo">취소</button><button class="danger" id="modalYes">확인</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="acctModal" hidden>
+  <div class="modal acct" role="dialog" aria-modal="true" aria-labelledby="acctTitle">
+    <button class="modal-x" id="acctX" type="button" aria-label="닫기">×</button>
+    <h3 id="acctTitle">로그인</h3>
+    <form id="loginForm" novalidate>
+      <p>로그인하면 휴대폰·컴퓨터·다른 브라우저 어디서든 같은 기록으로 이어서 해요.</p>
+      <label>아이디<span class="inp"><input id="liId" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" inputmode="text"></span></label>
+      <label>비밀번호<span class="inp"><input id="liPw" type="password" autocomplete="current-password" maxlength="72"></span></label>
+      <p class="err" id="liErr"></p>
+      <button class="main" id="liBtn" type="submit">로그인</button>
+      <p class="hint" id="liNote">로그인하면 이 기기에는 계정에 저장된 기록이 보여요.</p>
+      <div class="links"><button class="linkish" id="toSignup" type="button">처음이에요 (가입하기)</button><button class="linkish" id="later1" type="button">로그인 없이 해 보기</button></div>
+    </form>
+    <form id="signupForm" novalidate hidden>
+      <p id="suLead"></p>
+      <label id="suNickBox">닉네임 (순위에 보이는 이름, 한글·영문·숫자 2~12자)<span class="inp"><input id="suNick" maxlength="12" autocomplete="nickname"></span></label>
+      <label>아이디 (영문 소문자·숫자·밑줄 4~20자)<span class="inp"><input id="suId" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20"></span></label>
+      <label>비밀번호 (6자 이상)<span class="inp"><input id="suPw" type="password" autocomplete="new-password" maxlength="72"></span></label>
+      <label>비밀번호 확인<span class="inp"><input id="suPw2" type="password" autocomplete="new-password" maxlength="72"></span></label>
+      <p class="err" id="suErr"></p>
+      <button class="main" id="suBtn" type="submit">가입하기</button>
+      <p class="hint" id="suNote"></p>
+      <div class="links"><button class="linkish" id="toLogin" type="button">이미 아이디가 있어요 (로그인)</button><button class="linkish" id="later2" type="button">나중에</button></div>
+    </form>
+    <div class="view" id="meView" hidden>
+      <p id="meWho"></p>
+      <div class="box">
+        <h4>체결 알림</h4>
+        <p class="hint" id="pushTxt"></p>
+        <div class="row"><button class="btn-sm" id="pushOn" type="button" hidden>알림 켜기</button><button class="btn-sm" id="pushTest" type="button" hidden>시험 알림 보내기</button><button class="btn-sm" id="pushOff" type="button" hidden>이 기기 알림 끄기</button></div>
+      </div>
+      <div class="box">
+        <h4>비밀번호 바꾸기</h4>
+        <form id="pwForm" novalidate>
+          <input id="pwUser" autocomplete="username" hidden>
+          <span class="inp"><input id="pwOld" type="password" autocomplete="current-password" placeholder="지금 비밀번호" aria-label="지금 비밀번호" maxlength="72"></span>
+          <span class="inp"><input id="pwNew" type="password" autocomplete="new-password" placeholder="새 비밀번호 (6자 이상)" aria-label="새 비밀번호" maxlength="72"></span>
+          <p class="err" id="pwErr"></p>
+          <div class="row"><button class="btn-sm" id="pwBtn" type="submit">바꾸기</button><span class="hint">바꾸면 다른 기기는 다시 로그인해야 해요.</span></div>
+        </form>
+      </div>
+      <p class="hint" id="engineTxt"></p>
+      <div class="links"><button class="linkish" id="logoutBtn" type="button">로그아웃</button><button class="linkish" id="delAcctBtn" type="button">계정 지우기</button></div>
+    </div>
   </div>
 </div>
 
@@ -615,10 +691,10 @@ function load() {
   try { const o = JSON.parse(localStorage.getItem(OLD_KEY)); if (o && typeof o.balance === 'number') return migrate(o); } catch (e) {}
   return freshState();
 }
-let S = load(), started = false;
+let S = load(), started = false, leaving = false;   // leaving = 로그아웃·계정 바꾸고 새로 여는 중 (그 사이 저장하지 않아요)
 // rev = 기록이 실제로 바뀐 횟수. 같은 브라우저의 다른 탭(창)이 더 새 기록을 저장해 뒀으면 덮어쓰지 않고 그걸 가져와요.
 function persist() {
-  if (S.sim) return;
+  if (S.sim || leaving) return;
   const o = stored(); if (o && o.rev > (S.rev || 0)) return adopt(o);
   try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {}
 }
@@ -1042,7 +1118,8 @@ function drawPriceLines() {
   }
   const kinds = new Set(want.map(w => w.drag).filter(Boolean)), hint = $('chartHint');
   hint.hidden = !kinds.size;
-  if (kinds.size) hint.textContent = '줄을 잡고 위아래로 끌면 바뀌어요: ' + [kinds.has('tp') || kinds.has('sl') || kinds.has('dtp') || kinds.has('dsl') ? '익절·손절가' : '', kinds.has('order') || kinds.has('dpx') ? '예약 가격' : '', kinds.has('liq') ? '격리 청산가(증거금 넣기·빼기)' : ''].filter(Boolean).join(', ') + (kinds.has('entry') ? '. 평균가 줄을 끌어내면 익절·손절을 새로 걸어요.' : '.');
+  const dragKinds = [kinds.has('tp') || kinds.has('sl') || kinds.has('dtp') || kinds.has('dsl') ? '익절·손절가' : '', kinds.has('order') || kinds.has('dpx') ? '예약 가격' : '', kinds.has('liq') ? '격리 청산가(증거금 넣기·빼기)' : ''].filter(Boolean).join(', ');
+  if (kinds.size) hint.textContent = (dragKinds ? '줄을 잡고 위아래로 끌면 바뀌어요: ' + dragKinds + '. ' : '') + (kinds.has('entry') ? '평균가 줄을 잡고 위나 아래로 끌어내면 익절·손절을 새로 걸어요.' : '');
 }
 
 // 끌기: 마우스와 손가락(터치) 모두. 줄 가까이에서 누르면 차트 대신 줄이 움직여요.
@@ -1557,21 +1634,21 @@ function checkTriggers() {
     const name = sideName(p);
     if (p.mode === 'isolated') {
       const lq = liqOf(p);
-      if (p.dir > 0 ? px <= lq : px >= lq) { liquidateIso(p, lq); toast(`<b>청산</b> · ${name} 격리 ${p.lev}배 · 증거금 ${fUsd(p.margin)} USDC를 잃었어요`, 8000); changed = true; continue; }
+      if (p.dir > 0 ? px <= lq : px >= lq) { liquidateIso(p, lq); fired(`<b>청산</b> · ${name} 격리 ${p.lev}배 · 증거금 ${fUsd(p.margin)} USDC를 잃었어요`, 8000, `청산 · ${name} 격리 ${p.lev}배`, `증거금 ${fUsd(p.margin)} USDC를 잃었어요.`); changed = true; continue; }
     }
-    if (p.sl && (p.dir > 0 ? px <= p.sl : px >= p.sl)) { const r = reducePosition(p, p.size, p.sl, '손절'); toast(`손절 · ${name} · <b>${fUsd(r, true)}</b> USDC`); changed = true; }
-    else if (p.tp && (p.dir > 0 ? px >= p.tp : px <= p.tp)) { const r = reducePosition(p, p.size, p.tp, '익절'); toast(`익절 · ${name} · <b>${fUsd(r, true)}</b> USDC`); changed = true; }
+    if (p.sl && (p.dir > 0 ? px <= p.sl : px >= p.sl)) { const r = reducePosition(p, p.size, p.sl, '손절'); fired(`손절 · ${name} · <b>${fUsd(r, true)}</b> USDC`, undefined, `손절 · ${name}`, `${fPx(p.sl)}에 정리 · ${fUsd(r, true)} USDC`); changed = true; }
+    else if (p.tp && (p.dir > 0 ? px >= p.tp : px <= p.tp)) { const r = reducePosition(p, p.size, p.tp, '익절'); fired(`익절 · ${name} · <b>${fUsd(r, true)}</b> USDC`, undefined, `익절 · ${name}`, `${fPx(p.tp)}에 정리 · ${fUsd(r, true)} USDC`); changed = true; }
   }
   const cr = crossState(markOf);
   if (cr.n && !cr.miss && cr.E < cr.MM) {
     const names = liquidateCross(markOf);
-    toast(`<b>교차 청산</b> · ${names}<br>교차 자산이 유지증거금보다 작아져서 교차 포지션이 한꺼번에 정리됐어요. 격리 포지션은 그대로예요.`, 10000);
+    fired(`<b>교차 청산</b> · ${names}<br>교차 자산이 유지증거금보다 작아져서 교차 포지션이 한꺼번에 정리됐어요. 격리 포지션은 그대로예요.`, 10000, `교차 청산 · ${names}`, '교차 포지션이 한꺼번에 정리됐어요. 격리 포지션은 그대로예요.');
     changed = true;
   }
   for (const o of [...S.orders]) {
     if (!S.orders.includes(o)) continue;
     const px = markOf(o.coin); if (!px) continue;
-    if (o.dir > 0 ? px <= o.px : px >= o.px) { const m = fillOrder(o, Date.now()); if (m) toast(m, 8000); changed = true; }
+    if (o.dir > 0 ? px <= o.px : px >= o.px) { const m = fillOrder(o, Date.now()); if (m) { const [t, ...b] = plain(m).split(' · '); fired(m, 8000, t, b.join(' · ')); } changed = true; }
   }
   if (changed) { commit(); renderAll(); }
   return changed;
@@ -1724,15 +1801,19 @@ const boardOn = () => !!(BOARD_URL && BOARD_KEY);
 let me = null;   // { id, nick, secret } 이 브라우저의 참가 정보
 try { me = JSON.parse(localStorage.getItem('mock24.me')) || null; } catch (e) {}
 // synced = 시작할 때 서버의 내 기록과 맞춰 봤는지. 맞춰 보기 전에는 알리지 않아요 (다른 기기에서 한 더 새 기록을 덮어쓰지 않게).
-const board = { rows: new Map(), since: null, loading: false, loaded: false, err: '', sort: 'ret', tick: 0, lastSnap: '', lastSent: 0, sending: false, rt: null, drawn: 0, synced: false };
+const board = { rows: new Map(), since: null, loading: false, loaded: false, err: '', sort: 'ret', tick: 0, lastSnap: '', lastSent: 0, lastPing: 0, sending: false, rt: null, drawn: 0, synced: false, base: null, syncedAt: 0, pulling: false };
+// 서버가 로그인·자동 체결을 지원하는지 (supabase.sql 새 버전을 실행했는지). ok: null = 아직 모름, pushKey = 알림 서명 공개 열쇠, engineAt = 서버 엔진이 마지막으로 돈 시각
+const auth = { ok: null, pushKey: null, engineAt: null };
 const r2 = v => Math.round(v * 100) / 100;
 const sig = v => +(+v).toPrecision(10);
 // 서버에 올리는 내 상태. 다른 기기에서 이어 할 수 있게 익절·손절·예약 주문·바뀐 횟수(rev)까지 담아요. (예전 앱은 모르는 칸을 무시해요)
 function snapshot() {
   return { v: 1, rev: S.rev || 0, bal: r2(S.balance), dep: S.deposited, pt: S.paidThrough,
-    pos: S.positions.map(p => ({ c: p.coin, d: p.dir, sz: sig(p.size), e: sig(p.entry), m: p.mode, mg: r2(p.margin), lev: p.lev, tp: p.tp || null, sl: p.sl || null, f: sig(p.fees || 0), t: p.openedAt, id: p.id })),
-    ord: S.orders.map(o => ({ id: o.id, c: o.coin, d: o.dir, px: sig(o.px), mg: r2(o.margin), lev: o.lev, m: o.mode, tp: o.tp || null, sl: o.sl || null, t: o.at, res: r2(o.res || 0), ...(o.ro ? { ro: 1 } : {}) })) };
+    pos: S.positions.map(p => ({ c: p.coin, d: p.dir, sz: sig(p.size), e: sig(p.entry), m: p.mode, mg: r2(p.margin), lev: p.lev, tp: p.tp || null, sl: p.sl || null, f: sig(p.fees || 0), t: p.openedAt, id: p.id, ...coinMeta(p.coin) })),
+    ord: S.orders.map(o => ({ id: o.id, c: o.coin, d: o.dir, px: sig(o.px), mg: r2(o.margin), lev: o.lev, m: o.mode, tp: o.tp || null, sl: o.sl || null, t: o.at, res: r2(o.res || 0), ...(o.ro ? { ro: 1 } : {}), ...coinMeta(o.coin) })) };
 }
+// 서버 엔진용: 종목 최대 레버리지(유지증거금률 계산)와 이름(알림 문장)
+const coinMeta = c => ({ ...(info[c]?.maxLev ? { mx: info[c].maxLev } : {}), ...(nameOf(c) !== tick(c) ? { nm: nameOf(c) } : {}) });
 // 서버 상태 → 이 브라우저 기록
 function fromSnap(st) {
   const s = freshState();
@@ -1759,29 +1840,47 @@ function mergeHistory(a, b) {
   const key = h => [h.type, h.at, h.coin || '', h.reason || ''].join('|'), seen = new Set(a.map(key));
   return [...a, ...b.filter(h => !seen.has(key(h)))].sort((x, y) => y.at - x.at).slice(0, 500);
 }
-// 같은 참가 정보로 다른 기기에서 더 많이 거래했으면(서버의 rev가 더 크면) 그 기록을 가져와요
+// 서버 기록 가져오기. why = 'lost' 이면 이 기기에서 아직 못 보낸 거래가 있었는데 서버 쪽이 먼저 바뀐 경우예요.
+async function adoptServer(row, why) {
+  const hist = await serverHistory(me.id).catch(() => []);
+  const s = fromSnap(row.state), keep = why === 'lost' ? S.history.filter(h => h.at <= board.syncedAt || h.first) : S.history;
+  s.lastSeen = Math.min(Date.now(), +row.state.ls > 0 ? +row.state.ls : Date.parse(row.updated_at) || Date.now());
+  s.createdAt = S.createdAt; s.history = mergeHistory(keep, hist);
+  S = s; S.outbox = []; board.base = s.rev; board.syncedAt = Date.now(); persist();
+  board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now();
+  if (started) renderAll();
+  toast(why === 'lost' ? '다른 기기나 서버 자동 체결로 먼저 바뀐 기록이 있어서 서버 기록으로 맞췄어요. 방금 이 기기에서 한 거래가 빠졌을 수 있으니 확인해 주세요.' : '다른 기기나 서버 자동 체결로 바뀐 기록을 가져왔어요.', 7000);
+}
+// 서버의 내 기록과 맞춰 보기 (시작할 때, 다시 보일 때, 순위에서 내 기록이 바뀐 걸 봤을 때).
+// base = 이 기기가 마지막으로 맞춘 서버 rev. 서버 rev 가 base 와 다르면 다른 기기나 서버 엔진이 바꾼 거라 서버 기록을 가져와요.
 async function pullMine() {
+  if (!me || S.sim || !boardOn() || board.pulling) return false;
+  board.pulling = true;
   try {
-    if (!me || S.sim || !boardOn()) return false;
     const r = await fetch(BOARD_URL + `/rest/v1/players?id=eq.${me.id}&select=updated_at,state`, { headers: boardHeaders() });
     if (!r.ok) return false;
     const row = (await r.json())[0], st = row?.state;
-    if (!st || typeof st.bal !== 'number' || typeof st.rev !== 'number' || st.rev <= (S.rev || 0)) return false;
-    const hist = await serverHistory(me.id).catch(() => []);
-    const s = fromSnap(st);
-    s.lastSeen = Math.min(Date.now(), Date.parse(row.updated_at) || Date.now());
-    s.createdAt = S.createdAt; s.history = mergeHistory(S.history, hist);
-    S = s; persist(); board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now();
-    toast('다른 기기(브라우저)에서 한 거래를 가져왔어요.', 6000);
-    return true;
+    board.synced = true;
+    if (!st || typeof st.bal !== 'number') return false;
+    const sr = typeof st.rev === 'number' ? st.rev : 0;
+    if (board.base == null ? sr > (S.rev || 0) : sr !== board.base) { await adoptServer(row, board.base != null && (S.rev || 0) > board.base ? 'lost' : ''); return true; }
+    board.base = sr; board.syncedAt = Date.now();
+    // 서버 엔진이 이 기록을 어디까지 확인했는지 (바뀐 게 없을 때) → 되짚기를 거기서부터
+    if (sr === (S.rev || 0) && +st.ls > (S.lastSeen || 0)) S.lastSeen = Math.min(Date.now(), +st.ls);
+    return false;
   } catch (e) { return false; }
-  finally { board.synced = true; }
+  finally { board.pulling = false; }
 }
 // 거래·입금 기록을 모아 두었다가 다음 알림 때 함께 보내요 (서버가 서버 시각을 붙여 쌓아요)
 function note(ev) {
   if (!me || S.sim) return;
   (S.outbox ||= []).push({ ...ev, at: ev.at || Date.now() });
   if (S.outbox.length > 400) S.outbox.splice(0, S.outbox.length - 400);
+}
+// 앱이 뒤에 숨어 있을 때 체결·청산되면 알림을 맡겨요 (서버 엔진이 1분 안에 내 기기들로 보내요)
+function fired(html, ms, title, body) {
+  toast(html, ms);
+  if (document.hidden && me?.login && auth.ok) note({ k: 'nt', t: title, b: body || '' });
 }
 function boardHeaders() {
   const h = { apikey: BOARD_KEY, 'Content-Type': 'application/json' };
@@ -1791,26 +1890,41 @@ function boardHeaders() {
 async function rpc(fn, body) {
   const r = await fetch(BOARD_URL + '/rest/v1/rpc/' + fn, { method: 'POST', headers: boardHeaders(), body: JSON.stringify(body) });
   const j = await r.json().catch(() => null);
-  if (!r.ok) throw new Error(j?.message || 'HTTP ' + r.status);
+  if (!r.ok) { const e = new Error(j?.message || 'HTTP ' + r.status); e.status = r.status; e.code = j?.code; throw e; }
   return j;
 }
+const noFn = e => e?.status === 404 || e?.code === 'PGRST202';   // 서버에 아직 그 함수가 없음 (supabase.sql 을 새로 실행하기 전)
 function scheduleReport() { if (!me || S.sim || !boardOn()) return; clearTimeout(board.rt); board.rt = setTimeout(sendReport, 1500); }
-async function sendReport() {
-  if (!me || S.sim || !boardOn() || board.sending || !board.synced) return;
-  const snap = JSON.stringify(snapshot()), out = (S.outbox || []).slice(0, 200);
-  // 바뀐 게 없으면 5분에 한 번만 (최근 접속 표시용)
-  if (snap === board.lastSnap && !out.length && !S.resetPending && Date.now() - board.lastSent < 5 * 60e3) return;
+async function sendReport(force) {
+  if (!me || S.sim || !boardOn() || board.sending) return false;
+  if (!board.synced) { pullMine(); return false; }   // 서버 기록과 맞춰 보기 전에는 알리지 않아요 (다른 기기의 더 새 기록을 덮어쓰지 않게)
+  const core = snapshot(), snap = JSON.stringify(core), out = (S.outbox || []).slice(0, 200);
+  // 바뀐 게 없으면 5분에 한 번만 (최근 접속 표시용). 그 사이에는 1분마다 '앱 열려 있음'만 알려요 (서버 엔진이 끼어들지 않게)
+  if (!force && snap === board.lastSnap && !out.length && !S.resetPending && Date.now() - board.lastSent < 5 * 60e3) {
+    if (auth.ok && Date.now() - board.lastPing > 55e3) { board.lastPing = Date.now(); rpc('ping', { p_id: me.id, p_secret: me.secret }).catch(() => {}); }
+    return true;
+  }
   board.sending = true;
   try {
-    await rpc('report', { p_id: me.id, p_secret: me.secret, p_state: JSON.parse(snap), p_events: out, p_reset: !!S.resetPending });
-    board.lastSnap = snap; board.lastSent = Date.now();
+    if (auth.ok) {
+      const r = await rpc('sync_state', { p_id: me.id, p_secret: me.secret, p_state: { ...core, ls: S.lastSeen }, p_events: out, p_base: board.base ?? null });
+      if (r?.conflict) { await adoptServer({ state: r.state, updated_at: r.updated_at }, (S.rev || 0) > (board.base ?? -1) ? 'lost' : ''); return false; }
+    } else await rpc('report', { p_id: me.id, p_secret: me.secret, p_state: core, p_events: out, p_reset: !!S.resetPending });
+    board.base = core.rev; board.syncedAt = Date.now();
+    board.lastSnap = snap; board.lastSent = board.lastPing = Date.now();
     S.outbox.splice(0, out.length); S.resetPending = false; persist();
-    const row = board.rows.get(me.id); if (row) { row.state = JSON.parse(snap); row.updated_at = new Date().toISOString(); }
+    const row = board.rows.get(me.id); if (row) { row.state = core; row.updated_at = new Date().toISOString(); }
+    return true;
   } catch (e) {
-    if (/auth/.test(e.message)) { forgetMe(); toast('순위 서버에서 내 참가 기록을 찾지 못해서 참가를 해제했어요. 다시 참가할 수 있어요.', 8000); }
+    if (/auth/.test(e.message)) {
+      const was = me?.login; forgetMe();
+      if (was) { toast('비밀번호가 바뀌었거나 다른 곳에서 로그아웃돼서 다시 로그인해야 해요.', 9000); openAcct('login'); }
+      else toast('순위 서버에서 내 참가 기록을 찾지 못해서 참가를 해제했어요. 아이디가 있으면 로그인해 주세요.', 8000);
+    } else if (noFn(e) && auth.ok) { auth.ok = false; renderBoard(true); }
+    return false;
   } finally { board.sending = false; }
 }
-function forgetMe() { me = null; try { localStorage.removeItem('mock24.me'); } catch (e) {} S.outbox = []; persist(); renderBoard(true); }
+function forgetMe() { me = null; try { localStorage.removeItem('mock24.me'); } catch (e) {} S.outbox = []; board.base = null; persist(); renderBoard(true); renderAcct(); }
 async function fetchBoard(full) {
   if (!boardOn() || board.loading) return;
   board.loading = true;
@@ -1823,6 +1937,9 @@ async function fetchBoard(full) {
     if (full) board.rows.clear();
     for (const row of rows) { board.rows.set(row.id, row); if (!board.since || row.updated_at > board.since) board.since = row.updated_at; }
     board.err = ''; board.loaded = true;
+    // 다른 기기나 서버 엔진이 내 기록을 바꿨으면 가져와요
+    const mine = me && rows.find(r => r.id === me.id), sr = mine?.state?.rev;
+    if (typeof sr === 'number' && board.base != null && sr !== board.base && !board.sending && Date.now() - board.syncedAt > 3000) pullMine();
   } catch (e) { board.err = '순위를 불러오지 못했어요. 잠시 뒤에 다시 시도해요.'; }
   finally { board.loading = false; }
   okx.sync(); renderBoard(true);
@@ -1860,9 +1977,18 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 function renderBoard(force) {
   const on = boardOn();
   $('boardOff').hidden = on;
-  $('joinForm').hidden = $('joinHint').hidden = !on || !!me;
+  $('joinForm').hidden = !on || !!me || auth.ok !== false;   // 로그인 없는 예전 서버일 때만 닉네임 참가
+  $('authJoin').hidden = !on || !!me || !auth.ok;
+  $('joinHint').hidden = !on || !!me;
+  $('joinHint').innerHTML = auth.ok
+    ? '가입하면 닉네임, 총자산, 수익률, 보유 포지션(익절·손절 포함), 예약 주문, 거래·입금 기록이 이 앱을 여는 <b>모든 사람에게 공개</b>돼요. 실명이나 연락처는 닉네임에 넣지 마세요. 아이디로 로그인하면 휴대폰·컴퓨터 어디서든 같은 기록으로 해요.'
+    : '참가하면 닉네임, 총자산, 수익률, 보유 포지션(익절·손절 포함), 예약 주문, 거래·입금 기록이 이 앱을 여는 <b>모든 사람에게 공개</b>돼요. 실명이나 연락처는 닉네임에 넣지 마세요. 참가하면 \'다른 기기에서 이어하기\' 링크로 휴대폰·컴퓨터를 오가며 같은 기록으로 할 수 있어요.';
   $('boardMe').hidden = !on || !me;
-  if (me) $('meNick').textContent = me.nick;
+  if (me) $('meNick').textContent = me.nick + (me.login ? ` (아이디 ${me.login})` : '');
+  $('addLoginBtn').hidden = !(auth.ok && me && !me.login);
+  $('acctBtn2').hidden = !me?.login;
+  $('moveBtn2').hidden = !!me?.login;
+  $('leaveBtn').textContent = me?.login ? '계정 지우기' : '순위에서 나가기';
   const t = performance.now(); if (!force && t - board.drawn < 1000) return; board.drawn = t;   // 표는 1초에 한 번까지만
   if (!on) { $('boardRows').innerHTML = ''; $('boardEmpty').hidden = true; $('rankTxt').textContent = ''; return; }
   const list = boardList();
@@ -1890,7 +2016,7 @@ async function joinBoard(e) {
   try {
     const id = await rpc('join_game', { p_nick: nick, p_secret: secret, p_state: snapshot() });
     me = { id, nick, secret }; try { localStorage.setItem('mock24.me', JSON.stringify(me)); } catch (_) {}
-    S.outbox = []; persist();
+    S.outbox = []; board.base = S.rev || 0; board.synced = true; board.syncedAt = Date.now(); persist();
     board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now();
     board.rows.set(id, { id, nick, resets: 0, state: snapshot(), updated_at: new Date().toISOString() });
     toast(`<b>${esc(nick)}</b>(으)로 순위에 참가했어요. 이제 거래할 때마다 순위가 바뀌어요.`, 6000);
@@ -1902,14 +2028,241 @@ async function joinBoard(e) {
 }
 async function leaveBoard() {
   if (!me) return;
+  const was = me.login;
   try { await rpc('leave_game', { p_id: me.id, p_secret: me.secret }); } catch (e) { if (!/auth/.test(e.message)) return toast('순위 서버에 연결하지 못했어요. 잠시 뒤에 다시 시도해 주세요.'); }
-  board.rows.delete(me.id); forgetMe(); toast('순위에서 나갔어요. 서버에 있던 내 기록을 지웠어요.');
+  await dropLocalPush(); closeAcct();
+  board.rows.delete(me.id); forgetMe();
+  toast(was ? '계정을 지웠어요. 서버에 있던 아이디·기록·알림 설정이 모두 지워졌어요. 이 기기에 보이는 기록은 남아 있어요.' : '순위에서 나갔어요. 서버에 있던 내 기록을 지웠어요.', 8000);
 }
+// ───────────────────────── 아이디 로그인 ─────────────────────────
+// 서버가 로그인을 지원하면(supabase.sql 새 버전) 순위 참가 = 가입이에요. 기록이 서버에 저장돼서 어느 기기에서든 로그인으로 이어져요.
+// 비밀번호는 서버 함수가 bcrypt 로 바꿔 저장하고, 이 브라우저에는 로그인 토큰만 남아요(mock24.me 의 secret).
+async function checkServer() {
+  if (!boardOn()) return;
+  try { const i = await rpc('server_info', {}); auth.ok = i?.v >= 5; auth.pushKey = i?.push_key || null; auth.engineAt = i?.engine_at || null; }
+  catch (e) { if (noFn(e)) auth.ok = false; }   // 네트워크 오류면 모름(null)으로 두고 나중에 다시 확인
+  renderBoard(true); renderAcct();
+}
+const LOGIN_RE = /^[a-z0-9_]{4,20}$/, NICK_RE = /^[가-힣A-Za-z0-9_]{2,12}$/;
+const pwBad = pw => pw.length < 6 ? '비밀번호는 6자 이상이에요.' : new TextEncoder().encode(pw).length > 72 ? '비밀번호가 너무 길어요 (영문 72자, 한글 24자까지).' : '';
+const plain = h => String(h).replace(/<br>/g, ' · ').replace(/<[^>]+>/g, '');
+function saveMe() { try { localStorage.setItem('mock24.me', JSON.stringify(me)); } catch (_) {} }
+function renderAcct() {
+  const b = $('acctBtn');
+  b.hidden = !auth.ok || !!S.sim;
+  b.classList.toggle('in', !!me?.login);
+  b.textContent = me?.login ? me.nick : me ? '아이디 만들기' : '로그인';
+  b.title = me?.login ? `아이디 ${me.login} · 내 계정` : '';
+}
+function openAcct(view) {
+  if (!auth.ok) return toast('로그인은 서버 준비가 끝나면 쓸 수 있어요.');
+  if (S.sim) return toast('연습 시세에서는 로그인할 수 없어요. 실제 시세로 다시 연결해 주세요.');
+  const v = view || (me?.login ? 'me' : me ? 'signup' : 'login');
+  $('loginForm').hidden = v !== 'login'; $('signupForm').hidden = v !== 'signup'; $('meView').hidden = v !== 'me';
+  $('liErr').textContent = $('suErr').textContent = $('pwErr').textContent = '';
+  const busy = S.positions.length || S.orders.length || S.history.length > 1;
+  if (v === 'login') {
+    $('acctTitle').textContent = '로그인';
+    $('liNote').textContent = busy && !me?.login
+      ? `로그인하면 이 기기에서 하던 기록(총자산 ${fUsd(account().equity)} USDC) 대신 계정에 저장된 기록이 보여요. 이 기기 기록을 그대로 쓰려면 '가입하기'로 새 아이디를 만드세요.`
+      : '로그인하면 이 기기에는 계정에 저장된 기록이 보여요.';
+  } else if (v === 'signup') {
+    $('acctTitle').textContent = me ? '아이디 만들기' : '가입하기';
+    $('suNickBox').hidden = !!me;
+    $('suLead').innerHTML = me
+      ? `지금 <b>${esc(me.nick)}</b> 기록에 아이디와 비밀번호를 붙여요. 붙이면 어느 기기에서든 로그인해서 이어서 할 수 있어요. 예전 '이어하기' 링크는 더 이상 쓸 수 없어요.`
+      : `지금 이 기기 기록(총자산 <b>${fUsd(account().equity)}</b> USDC, 포지션 ${S.positions.length}개)을 그대로 가져가요.`;
+    $('suNote').innerHTML = (me ? '' : '가입하면 닉네임, 총자산, 수익률, 보유 포지션, 예약 주문, 거래 기록이 순위에서 <b>모든 사람에게 공개</b>돼요. 실명이나 연락처는 넣지 마세요. ')
+      + '비밀번호는 서버에 암호화(bcrypt)해서 저장돼서 아무도 원래 비밀번호를 볼 수 없어요. 잊으면 방장에게 새 비밀번호를 정해 달라고 하세요.';
+    $('toLogin').hidden = false;
+  } else {
+    $('acctTitle').textContent = '내 계정';
+    $('meWho').innerHTML = `아이디 <b>${esc(me.login)}</b> · 닉네임 <b>${esc(me.nick)}</b>`;
+    $('pwUser').value = me.login;
+    $('engineTxt').textContent = engineTxt();
+    renderPush();
+    checkServer().then(() => { if (!$('meView').hidden) { $('engineTxt').textContent = engineTxt(); renderPush(); } });
+  }
+  $('acctModal').hidden = false;
+  setTimeout(() => (v === 'login' ? $('liId') : v === 'signup' ? (me ? $('suId') : $('suNick')) : $('acctX')).focus(), 30);
+}
+function closeAcct() { $('acctModal').hidden = true; }
+function later() { try { localStorage.setItem('mock24.loginLater', String(Date.now())); } catch (_) {} closeAcct(); }
+// 처음 열 때 로그인(예전 참가자는 아이디 만들기)을 권해요. '로그인 없이'를 누르면 3일 동안 묻지 않아요.
+function maybeAskLogin() {
+  if (!auth.ok || S.sim || me?.login || !$('modal').hidden || !$('acctModal').hidden) return;
+  let t = 0; try { t = +localStorage.getItem('mock24.loginLater') || 0; } catch (_) {}
+  if (Date.now() - t < 3 * 864e5) return;
+  openAcct(me ? 'signup' : 'login');
+}
+// 로그인·가입 성공: keep = 'signup'(지금 기록을 올렸어요) · 'add'(예전 참가 기록에 아이디만 붙였어요) · 없음(서버 기록을 가져와요)
+async function useAccount(j, keep) {
+  const prev = me?.id;
+  if (!keep) {
+    const r = await fetch(BOARD_URL + `/rest/v1/players?id=eq.${j.id}&select=id,nick,created_at,updated_at,state`, { headers: boardHeaders() });
+    const row = r.ok ? (await r.json())[0] : null;
+    if (!row?.state || typeof row.state.bal !== 'number') throw new Error('no_row');
+    const hist = await serverHistory(j.id).catch(() => []);
+    // 이 기기에 따로 하던 기록은 지우지 않고 한 칸에 남겨 둬요 (mock24.v2.bak)
+    if (prev !== j.id && (S.positions.length || S.orders.length || S.history.length > 1)) try { localStorage.setItem('mock24.v2.bak', JSON.stringify(S)); } catch (_) {}
+    const s = fromSnap(row.state), first = Math.min(Date.parse(row.created_at) || Date.now(), ...hist.map(h => h.at));
+    s.lastSeen = Math.min(Date.now(), +row.state.ls > 0 ? +row.state.ls : Date.parse(row.updated_at) || Date.now());
+    s.createdAt = first;
+    s.history = prev === j.id ? mergeHistory(S.history, hist) : mergeHistory(hist, [{ type: 'deposit', id: uid(), at: first, amount: START, first: true }]);
+    S = s; S.outbox = []; board.base = s.rev;
+  } else if (keep === 'signup') { S.outbox = []; board.base = S.rev || 0; }
+  me = { id: j.id, nick: j.nick, secret: j.token, login: j.login }; saveMe();
+  board.synced = keep !== 'add' || board.synced; board.syncedAt = Date.now(); persist();
+  if (keep !== 'add') { board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now(); }
+  $('liPw').value = $('suPw').value = $('suPw2').value = '';
+  closeAcct(); renderAll(); renderBoard(true); renderAcct();
+  toast(keep === 'signup' ? `<b>${esc(j.nick)}</b>(으)로 가입했어요. 이제 어느 기기에서든 아이디 <b>${esc(j.login)}</b>로 로그인하면 이 기록이 이어져요.`
+    : keep === 'add' ? `아이디 <b>${esc(j.login)}</b>를 만들었어요. 다른 기기에서는 이 아이디로 로그인하세요.`
+    : `<b>${esc(j.nick)}</b>(으)로 로그인했어요.`, 7000);
+  if (!keep) { catching = true; await catchUp(); }
+  else scheduleReport();
+  fetchBoard(true); syncPush();
+}
+async function doLogin(e) {
+  e.preventDefault();
+  const id = $('liId').value.trim().toLowerCase(), pw = $('liPw').value, err = m => { $('liErr').textContent = m; };
+  if (!LOGIN_RE.test(id)) return err('아이디는 영문 소문자·숫자·밑줄 4~20자예요.');
+  if (pwBad(pw)) return err(pwBad(pw));
+  $('liBtn').disabled = true;
+  try {
+    const j = await rpc('log_in', { p_login: id, p_password: pw });
+    if (j?.error) return err(j.error === 'locked' ? '비밀번호를 5번 틀려서 5분 동안 잠겼어요. 잠시 뒤에 다시 해 주세요.' : '아이디나 비밀번호가 맞지 않아요.');
+    await useAccount(j);
+  } catch (x) { err('서버에 연결하지 못했어요. 잠시 뒤에 다시 시도해 주세요.'); }
+  finally { $('liBtn').disabled = false; }
+}
+async function doSignup(e) {
+  e.preventDefault();
+  const id = $('suId').value.trim().toLowerCase(), pw = $('suPw').value, nick = $('suNick').value.trim(), err = m => { $('suErr').textContent = m; };
+  if (!me && !NICK_RE.test(nick)) return err('닉네임은 한글·영문·숫자·밑줄로 2~12자예요. 띄어쓰기는 안 돼요.');
+  if (!LOGIN_RE.test(id)) return err('아이디는 영문 소문자·숫자·밑줄 4~20자예요.');
+  if (pwBad(pw)) return err(pwBad(pw));
+  if (pw !== $('suPw2').value) return err('비밀번호 확인이 달라요.');
+  if (S.sim) return err('연습 시세에서는 가입할 수 없어요.');
+  $('suBtn').disabled = true;
+  try {
+    if (me) await useAccount(await rpc('add_login', { p_id: me.id, p_secret: me.secret, p_login: id, p_password: pw }), 'add');
+    else await useAccount(await rpc('sign_up', { p_login: id, p_password: pw, p_nick: nick, p_state: { ...snapshot(), ls: S.lastSeen } }), 'signup');
+  } catch (x) {
+    const m = x.message;
+    err(/login_taken/.test(m) ? '이미 있는 아이디예요. 다른 아이디를 골라 주세요.' : /nick_taken/.test(m) ? '이미 누가 쓰고 있는 닉네임이에요.' : /nick_/.test(m) ? '닉네임은 한글·영문·숫자·밑줄로 2~12자예요.'
+      : /login_chars/.test(m) ? '아이디는 영문 소문자·숫자·밑줄 4~20자예요.' : /pw_length/.test(m) ? '비밀번호는 6자 이상이에요.' : /has_login/.test(m) ? '이 기록에는 이미 아이디가 있어요. 로그인해 주세요.'
+      : /auth/.test(m) ? '이 기기의 참가 정보가 서버와 맞지 않아요. 아이디가 있으면 로그인해 주세요.' : /full/.test(m) ? '참가 인원이 가득 찼어요.' : '서버에 연결하지 못했어요. 잠시 뒤에 다시 시도해 주세요.');
+  } finally { $('suBtn').disabled = false; }
+}
+async function doChangePw(e) {
+  e.preventDefault();
+  const o = $('pwOld').value, n = $('pwNew').value, err = m => { $('pwErr').textContent = m; };
+  if (!o) return err('지금 비밀번호를 넣어 주세요.');
+  if (pwBad(n)) return err(pwBad(n));
+  $('pwBtn').disabled = true;
+  try {
+    const j = await rpc('change_password', { p_id: me.id, p_secret: me.secret, p_old: o, p_new: n });
+    if (j?.error) return err(j.error === 'locked' ? '비밀번호를 5번 틀려서 5분 동안 잠겼어요.' : '지금 비밀번호가 맞지 않아요.');
+    $('pwOld').value = $('pwNew').value = ''; err('');
+    toast('비밀번호를 바꿨어요. 다른 기기는 새 비밀번호로 다시 로그인해야 해요.', 7000);
+  } catch (x) { err(/pw_length/.test(x.message) ? '새 비밀번호는 6자 이상이에요.' : '서버에 연결하지 못했어요. 잠시 뒤에 다시 시도해 주세요.'); }
+  finally { $('pwBtn').disabled = false; }
+}
+// 로그아웃: 못 보낸 기록을 먼저 보내고, 이 기기는 새 기록(손님)으로 돌아가요. 계정 기록은 서버에 그대로.
+async function doLogout() {
+  if (!me) return;
+  const sent = await sendReport(true);
+  if (!sent && ((S.outbox || []).length || JSON.stringify(snapshot()) !== board.lastSnap))
+    return ask('아직 서버에 못 보낸 기록이 있어요', '지금 로그아웃하면 이 기기에서 방금 한 거래가 계정에 남지 않을 수 있어요. 인터넷 연결을 확인하고 다시 해 보세요.', '그래도 로그아웃', finishLogout);
+  finishLogout();
+}
+async function finishLogout() {
+  const ep = await dropLocalPush();
+  try { await rpc('log_out', { p_id: me.id, p_secret: me.secret, p_endpoint: ep }); } catch (_) {}
+  leaving = true;
+  try { localStorage.removeItem('mock24.me'); localStorage.setItem(STORE_KEY, JSON.stringify(freshState())); } catch (_) {}
+  location.reload();
+}
+
+// ───────────────────────── 체결 알림 (웹 푸시) ─────────────────────────
+// 서버 엔진이 체결·청산을 확인하면 등록한 기기로 알림을 보내요. 아이폰은 홈 화면에 추가한 앱에서만(iOS 16.4 이상).
+const swReady = () => 'serviceWorker' in navigator ? Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(() => r(null), 8000))]) : Promise.resolve(null);
+const b64uBytes = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+const sameKey = (a, b) => { if (!a) return false; const x = new Uint8Array(a); return x.length === b.length && x.every((v, i) => v === b[i]); };
+let pushEp = null; try { pushEp = localStorage.getItem('mock24.push'); } catch (_) {}
+function pushBlocker() {
+  if (INAPP) return '카카오톡 같은 앱 안의 브라우저에서는 알림을 받을 수 없어요. 크롬이나 사파리에서 열어 주세요.';
+  if (ios && !standalone) return '아이폰은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요(iOS 16.4 이상). 사파리 공유 버튼 → 홈 화면에 추가 → 그 앱에서 로그인하고 켜 주세요.';
+  if (!('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window)) return '이 브라우저는 알림을 지원하지 않아요.';
+  if (!auth.pushKey) return '서버 알림이 아직 준비되지 않았어요. 방장이 서버 설정을 마치면 켤 수 있어요.';
+  if (Notification.permission === 'denied') return '이 사이트 알림이 꺼져 있어요. 브라우저(또는 휴대폰) 설정에서 알림을 허용한 뒤 다시 열어 주세요.';
+  return '';
+}
+async function pushSub() { try { const reg = await swReady(); return reg ? await reg.pushManager.getSubscription() : null; } catch (e) { return null; } }
+async function renderPush() {
+  const why = pushBlocker(), sub = why ? null : await pushSub(), on = !!sub && sub.endpoint === pushEp;
+  $('pushTxt').textContent = why || (on ? '이 기기로 예약 체결·익절·손절·청산 알림이 와요. 앱을 닫아 둬도 서버가 1분마다 확인해서 보내요.' : '켜면 앱을 닫아 둬도 예약 체결·익절·손절·청산이 될 때 이 기기로 알림이 와요.');
+  $('pushOn').hidden = !!why || on; $('pushOff').hidden = !on; $('pushTest').hidden = !on;
+}
+// 구독하고 서버에 저장. quiet = 시작할 때 조용히 다시 맞추기
+async function subscribePush(quiet) {
+  const reg = await swReady(); if (!reg) { if (!quiet) toast('알림 준비가 아직 안 됐어요. 화면을 새로 고친 뒤 다시 눌러 주세요.'); return false; }
+  try {
+    const key = b64uBytes(auth.pushKey);
+    let sub = await reg.pushManager.getSubscription();
+    if (sub && !sameKey(sub.options?.applicationServerKey, key)) { await sub.unsubscribe(); sub = null; }
+    sub ||= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    await rpc('save_push', { p_id: me.id, p_secret: me.secret, p_sub: sub.toJSON() });
+    pushEp = sub.endpoint; try { localStorage.setItem('mock24.push', pushEp); } catch (_) {}
+    return true;
+  } catch (e) {
+    if (!quiet) toast(/push_endpoint/.test(e.message) ? '이 브라우저의 알림 서버는 아직 지원하지 않아요. 크롬·사파리·엣지·파이어폭스에서 해 주세요.' : '알림을 켜지 못했어요. 잠시 뒤에 다시 해 주세요.', 8000);
+    return false;
+  }
+}
+async function enablePush() {
+  const why = pushBlocker(); if (why) return toast(why, 9000);
+  if (await Notification.requestPermission() !== 'granted') { renderPush(); return toast('알림을 허용해야 받을 수 있어요.'); }
+  if (await subscribePush()) toast('이 기기에서 체결 알림을 켰어요. "시험 알림 보내기"로 확인해 보세요.', 7000);
+  renderPush();
+}
+async function dropLocalPush() {
+  const sub = await pushSub(), ep = sub?.endpoint || pushEp || null;
+  try { await sub?.unsubscribe(); } catch (_) {}
+  pushEp = null; try { localStorage.removeItem('mock24.push'); } catch (_) {}
+  return ep;
+}
+async function disablePush() {
+  const ep = await dropLocalPush();
+  if (ep && me) rpc('drop_push', { p_id: me.id, p_secret: me.secret, p_endpoint: ep }).catch(() => {});
+  renderPush(); toast('이 기기 알림을 껐어요.');
+}
+async function testPush() {
+  try { await rpc('notify_me', { p_id: me.id, p_secret: me.secret, p_text: '시험 알림이에요. 체결되면 이렇게 알려 드려요.' }); toast('1분 안에 이 기기로 알림이 와요. 앱을 닫아 둬도 와요.', 7000); }
+  catch (e) { toast(/too_many/.test(e.message) ? '시험 알림은 10분에 20번까지예요.' : '보내지 못했어요. 잠시 뒤에 다시 해 주세요.'); }
+}
+// 알림을 켜 둔 기기면 시작할 때 구독을 다시 맞춰요 (브라우저가 구독을 바꾸거나 지웠을 수 있어요)
+async function syncPush() {
+  if (!me?.login || !pushEp || pushBlocker() || Notification.permission !== 'granted') return;
+  await subscribePush(true);
+}
+function engineTxt() {
+  const t = Date.parse(auth.engineAt || '');
+  if (!t) return '서버 자동 체결: 준비 중. 서버 설정이 끝나면 앱을 닫아 둬도 1분마다 확인해요.';
+  const m = (Date.now() - t) / 6e4;
+  return m < 10 ? `서버 자동 체결: 켜짐. 앱을 닫아 둬도 1분마다 확인해요 (마지막 확인 ${m < 1 ? '방금' : Math.floor(m) + '분 전'}).` : `서버 자동 체결: 멈춤 (마지막 확인 ${ago(t)}). 방장에게 알려 주세요.`;
+}
+
 // 다른 기기·브라우저에서 이어하기: 링크(#resume=참가번호.비밀코드)를 열면 서버에 있는 내 기록을 가져와요.
 // 링크의 # 뒤는 주소 서버(GitHub Pages)로 보내지지 않아요. 열자마자 주소창에서 지워요.
 const moveLink = () => location.origin + location.pathname + '#resume=' + me.id + '.' + me.secret;
 function showMove() {
   if (S.sim) return toast('연습 시세에서는 옮길 수 없어요.');
+  if (auth.ok) {
+    if (me?.login) return ask('다른 기기에서 이어하기', `다른 휴대폰·컴퓨터·브라우저에서 이 앱을 열고 같은 아이디(${me.login})로 로그인하면 돼요. 기록이 서버에 저장돼서 어디서 하든 같아요.`, '확인', null);
+    return openAcct('signup');
+  }
   if (!me) return ask('순위에 참가해야 옮길 수 있어요', '지금 기록은 이 브라우저 안에만 있어요. 순위에 참가하면 기록이 순위 서버에도 올라가서, 이어하기 링크로 다른 휴대폰·컴퓨터·브라우저에서 같은 기록으로 계속할 수 있어요.', '순위 탭 열기', () => openTab('board'));
   ask('다른 기기에서 이어하기', '이 링크를 복사해서, 이어서 할 기기(브라우저)에서 열어 주세요. 그 뒤로는 두 곳 중 어디서 하든 더 새 기록을 서로 가져와요. 이 링크는 비밀번호와 같아요. 받은 사람은 내 기록으로 거래할 수 있으니 다른 사람에게 보내지 마세요.', '링크 복사', () => {
     const link = moveLink();
@@ -1935,7 +2288,7 @@ async function resumeFromLink() {
     const s = fromSnap(row.state), first = Math.min(Date.parse(row.created_at) || Date.now(), ...hist.map(h => h.at));
     s.lastSeen = Math.min(Date.now(), Date.parse(row.updated_at) || Date.now()); s.createdAt = first;
     s.history = mergeHistory(hist, [{ type: 'deposit', id: uid(), at: first, amount: START, first: true }]);
-    S = s; board.synced = true; persist(); board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now();
+    S = s; board.synced = true; board.base = s.rev; board.syncedAt = Date.now(); persist(); board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now();
     toast(`<b>${esc(row.nick)}</b>의 기록을 가져왔어요. 이제 이 브라우저에서도 이어서 할 수 있어요.`, 7000);
     renderBoard(true); await catchUp(); fetchBoard(true);
   };
@@ -1950,7 +2303,7 @@ setInterval(() => {
   if (n % 24 === 0) fetchBoard(true);
   else if (open ? n % 2 === 0 : (me && n % 12 === 0)) fetchBoard(false);
 }, 5000);
-setInterval(sendReport, 60e3);
+setInterval(() => { sendReport(); if (auth.ok === null && !document.hidden) checkServer(); }, 60e3);
 
 // ───────────────────────── 만약 그때 샀다면 ─────────────────────────
 function fillWhatIf() {
@@ -2090,6 +2443,26 @@ window.addEventListener('appinstalled', () => { $('installBanner').hidden = true
 if (ios && !standalone && /Safari\//.test(UA) && !/CriOS|FxiOS|EdgiOS/.test(UA)) showInstall('<b>앱처럼 쓰기:</b> 아래 <b>공유 버튼</b> → <b>홈 화면에 추가</b>. 아이폰은 홈 화면 앱의 기록이 사파리와 따로 저장될 수 있어요. 지금 기록은 <b>다른 기기·브라우저로 옮기기</b> 링크로 옮겨 주세요.', false);
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 $('joinForm').addEventListener('submit', joinBoard);
+$('acctBtn').addEventListener('click', () => openAcct());
+$('acctBtn2').addEventListener('click', () => openAcct('me'));
+$('addLoginBtn').addEventListener('click', () => openAcct('signup'));
+$('joinAuthBtn').addEventListener('click', () => openAcct('signup'));
+$('loginAuthBtn').addEventListener('click', () => openAcct('login'));
+$('toSignup').addEventListener('click', () => openAcct('signup'));
+$('toLogin').addEventListener('click', () => openAcct('login'));
+$('later1').addEventListener('click', later);
+$('later2').addEventListener('click', later);
+$('acctX').addEventListener('click', closeAcct);
+$('acctModal').addEventListener('click', e => { if (e.target === $('acctModal')) closeAcct(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('acctModal').hidden) closeAcct(); });
+$('loginForm').addEventListener('submit', doLogin);
+$('signupForm').addEventListener('submit', doSignup);
+$('pwForm').addEventListener('submit', doChangePw);
+$('logoutBtn').addEventListener('click', () => ask('로그아웃할까요?', '이 기기는 새 기록(손님) 화면으로 돌아가요. 계정 기록은 서버에 그대로 있어서 다시 로그인하면 이어져요. 이 기기의 체결 알림도 꺼져요.', '로그아웃', doLogout));
+$('delAcctBtn').addEventListener('click', () => ask('계정을 지울까요?', '서버에 있는 내 아이디·닉네임·기록·알림 설정이 모두 지워지고 순위에서 빠져요. 되돌릴 수 없어요.', '계정 지우기', leaveBoard));
+$('pushOn').addEventListener('click', enablePush);
+$('pushOff').addEventListener('click', disablePush);
+$('pushTest').addEventListener('click', testPush);
 $('sortSeg').addEventListener('click', e => { const b = e.target.closest('[data-sort]'); if (!b) return; board.sort = b.dataset.sort; document.querySelectorAll('#sortSeg button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderBoard(true); });
 let modalAct = null;
 function ask(title, body, yes, fn, link) {
@@ -2098,7 +2471,9 @@ function ask(title, body, yes, fn, link) {
   $('modal').hidden = false; $('modalNo').focus();
 }
 $('modalLink').addEventListener('focus', e => e.target.select());
-$('leaveBtn').addEventListener('click', () => ask('순위에서 나갈까요?', '서버에 있는 내 닉네임과 기록이 지워져요. 이 브라우저의 거래 기록은 그대로예요. 다시 참가하면 새로 등록돼요.', '나가기', leaveBoard));
+$('leaveBtn').addEventListener('click', () => me?.login
+  ? ask('계정을 지울까요?', '서버에 있는 내 아이디·닉네임·기록·알림 설정이 모두 지워지고 순위에서 빠져요. 되돌릴 수 없어요.', '계정 지우기', leaveBoard)
+  : ask('순위에서 나갈까요?', '서버에 있는 내 닉네임과 기록이 지워져요. 이 브라우저의 거래 기록은 그대로예요. 다시 참가하면 새로 등록돼요.', '나가기', leaveBoard));
 $('modalNo').addEventListener('click', () => { $('modal').hidden = true; });
 $('modalYes').addEventListener('click', () => { $('modal').hidden = true; const f = modalAct; modalAct = null; f && f(); });
 $('retryBtn').addEventListener('click', () => { feed.stop(); feed.mode = 'live'; feed.retry = 0; sim.timer && clearInterval(sim.timer); if (S.sim) S = load(); catching = true; $('netBanner').hidden = true; boot(); });
@@ -2108,7 +2483,11 @@ async function wake() { if (S.sim) return; catching = true; await pullMine(); aw
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); else wake(); });
 // 같은 브라우저에서 탭(창)을 여러 개 열었을 때: 다른 탭이 저장한 더 새 기록을 바로 따라가요
 window.addEventListener('storage', e => {
-  if (e.key === 'mock24.me') { try { me = JSON.parse(e.newValue) || null; } catch (_) { me = null; } renderBoard(true); return; }
+  if (e.key === 'mock24.me') {
+    let nm = null; try { nm = JSON.parse(e.newValue) || null; } catch (_) {}
+    if ((nm?.id || null) !== (me?.id || null)) { leaving = true; location.reload(); return; }   // 다른 탭에서 로그인·로그아웃·참가
+    me = nm; renderBoard(true); renderAcct(); return;
+  }
   if (e.key !== STORE_KEY || !e.newValue || S.sim || catching) return;
   let o; try { o = fix(JSON.parse(e.newValue)); } catch (_) { return; }
   if (o.v === 2 && (o.rev > (S.rev || 0) || (o.rev === (S.rev || 0) && document.hidden))) adopt(o);
@@ -2127,16 +2506,18 @@ async function boot() {
   let saved = 'BTC'; try { saved = localStorage.getItem('mock24.coin') || 'BTC'; } catch (e) {}
   await selectMarket(saved, true);
   if (/^#resume=/.test(location.hash)) await resumeFromLink();
+  await checkServer();
   await pullMine();
   await catchUp();
   if (boardOn()) fetchBoard(true);
+  maybeAskLogin(); syncPush();
 }
 // 브라우저가 저장 공간이 부족할 때 이 사이트 기록을 먼저 지우지 않도록 요청해요 (크롬 등은 묻지 않고 정해요. 파이어폭스는 창을 띄워서 건너뛰어요)
 if (!/Firefox\//.test(navigator.userAgent)) navigator.storage?.persist?.().catch(() => {});
-makeChart(); setupWhatIf(); renderLineSeg(); renderPositions(); renderOrders(); renderHistory(); renderEquity(); renderOrderSummary(); renderQuote(); renderBoard(true); started = true;
+makeChart(); setupWhatIf(); renderLineSeg(); renderPositions(); renderOrders(); renderHistory(); renderEquity(); renderOrderSummary(); renderQuote(); renderBoard(true); renderAcct(); started = true;
 boot();
 window.__mock24 = { okx, MARKETS, BY_COIN, NAMES, loadMarkets, selectMarket, board, me: () => me, snapshot, valueOf, fetchBoard, state: () => S, setState: s => { S = s; }, info, mids, cur, feed, markOf, placeOrder, manualClose, checkTriggers, checkPayday, catchUp, crossState, liqOf, account, liqPrice, save, load, isCatching: () => catching,
-  commit, cancelOrder, setOrderType, setTpSl, setIsoMargin, isoMarginFor, fromSnap, pullMine, resumeFromLink, lines, series: () => series, chart: () => chart, drawPriceLines, plan, orderType: () => orderType, lineStyle: () => lineStyle };
+  commit, cancelOrder, setOrderType, setTpSl, setIsoMargin, isoMarginFor, fromSnap, pullMine, resumeFromLink, lines, auth, openAcct, sendReport, checkServer, renderPush, pushBlocker, series: () => series, chart: () => chart, drawPriceLines, plan, orderType: () => orderType, lineStyle: () => lineStyle };
 })();
 </script>
 </body>

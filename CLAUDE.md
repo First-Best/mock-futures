@@ -32,8 +32,18 @@
 - 보는 사람의 브라우저가 각자의 `state`를 지금 시세로 계산(`valueOf`: 밀린 월급 더하기, 교차·격리 청산 어림)해서 순위를 매긴다. 순위 탭이 열려 있으면 10초, 아니면 1분마다 `updated_at` 이후 바뀐 사람만 받고 2분마다 전체를 받는다.
 - 한계: 브라우저가 알리는 값이라 조작할 수 있다. 다음 단계는 `events`를 실제 시세로 다시 계산하는 검증.
 - v0.4 `snapshot()`에 `rev`, 포지션 `tp`·`sl`·`f`(수수료)·`t`(진입 시각)·`id`, `ord`(예약 주문)를 더했다. 예전 앱은 모르는 칸을 무시한다. `fromSnap()`이 거꾸로 바꾼다.
-- 다른 기기에서 이어하기: `#resume=참가번호.비밀코드` 링크(`showMove()`). 열면 서버 기록을 읽고 `report`로 비밀 코드를 확인한 뒤 가져오고, 주소창에서 바로 지운다. 거래 기록은 `events`에서 다시 만든다(참가 전 기록은 없음). 시작·다시 보일 때 `pullMine()`이 서버 rev가 더 크면 서버 기록을 가져오고, 그 전에는 `sendReport()`가 알리지 않는다(`board.synced`).
+- 다른 기기에서 이어하기: `#resume=참가번호.비밀코드` 링크(`showMove()`). 열면 서버 기록을 읽고 `report`로 비밀 코드를 확인한 뒤 가져오고, 주소창에서 바로 지운다. 거래 기록은 `events`에서 다시 만든다(참가 전 기록은 없음). 시작·다시 보일 때 `pullMine()`이 서버 rev가 더 크면 서버 기록을 가져오고, 그 전에는 `sendReport()`가 알리지 않는다(`board.synced`). 아이디로 로그인한 사람에게는 링크 대신 같은 아이디로 로그인하라고 안내한다.
 - 시험: 이 환경에는 `/usr/lib/postgresql/16`이 있어 `supabase.sql`을 로컬에서 anon 역할로 시험할 수 있다. 앱은 Playwright에서 가짜 PostgREST 응답으로 시험한다.
+
+## 로그인·동기화·서버 엔진·알림 (2026-10-11 추가, 사용자가 '아이디+비번' 방식을 골랐다)
+- Supabase Auth 는 쓰지 않는다. `supabase.sql`의 SECURITY DEFINER 함수로 직접 만든 로그인: `accounts`(아이디 `^[a-z0-9_]{4,20}$`, bcrypt `extensions.crypt`, 5번 틀리면 5분 잠금), `player_tokens`(로그인 토큰 sha256, 사람당 20개). 토큰을 `me.secret`으로 써서 예전 함수(`report` 등)도 그대로 통한다(`secret_ok`). 표는 모두 RLS + anon 권한 없음.
+- 함수: `sign_up`, `log_in`(틀리면 예외 대신 `{error}` 돌려줌 → 실패 횟수가 남음), `add_login`(예전 참가자에 아이디 붙이기, 예전 비밀 코드는 지움), `log_out`, `change_password`(다른 기기 토큰 지움), `admin_set_password`(대시보드 SQL Editor 전용, 비번 잊은 친구용), `server_info`(`v`≥5 면 앱이 로그인 화면을 켬, 없으면 예전 방식), `sync_state`, `ping`, `save_push`·`drop_push`, `notify_me`.
+- 동기화: `sync_state(p_base)`는 서버 `state.rev`가 `p_base`와 같을 때만 쓴다(낙관적 잠금). 다르면 `{conflict, state}` → 앱은 서버 기록을 가져온다(`adoptServer`, 서버 우선). 앱 `board.base` = 마지막으로 맞춘 서버 rev. 로그인 안 한 예전 참가자는 계속 `report`.
+- `active_at`: 앱이 열려 있으면 1분마다 `ping`. 3분 넘게 소식이 없는 사람만 서버 엔진이 대신 처리한다.
+- 서버 엔진 `supabase/functions/engine/index.ts`(Deno, Edge Function `engine`): `supabase-engine.sql`의 pg_cron 이 1분마다 `x-engine-key`(= `engine_meta.cron_key`)를 붙여 부른다. 포지션·예약이 있는 사람의 `state.ls`(엔진이 확인한 시각)부터 지금까지 봉을 받아 `catchUp`과 같은 순서로 월급(한국시간 매달 1일)·청산·익절손절·예약 체결을 되짚고 rev+1 로 CAS 저장. 바뀐 게 없으면 `ls`만 고친다. 엔진이 쓴 이벤트는 `srv:1`.
+- **거래 규칙(청산·수수료·체결·월급)을 바꾸면 `index.html`과 `engine/index.ts`를 둘 다 고친다.** 엔진은 `snapshot()`의 `mx`(최대 레버리지)·`nm`(이름)을 쓰고, 없으면 하루 한 번 받은 레버리지 표를 쓴다.
+- 알림(웹 푸시): VAPID 키는 엔진이 처음 돌 때 만들어 `engine_meta`에 둔다(공개키는 `server_info.push_key`). 엔진이 체결 메시지와 `k:'nt'` 이벤트(30분 안)를 aes128gcm 으로 암호화해 보낸다. 앱이 숨은 탭에서 체결하면 `fired()`가 `nt`를 쌓는다. 404·410 받으면 구독 삭제. 아이폰은 홈 화면 앱에서만.
+- 시험(로컬, 진짜 Supabase 에 쓰지 않음): Postgres `/var/tmp/pgmock`(5432 대신 54329), Deno 로 엔진 시험(`ENGINE_TEST=1`이면 `Deno.serve` 안 함), Playwright 두 기기 시험은 가짜 PostgREST 가 anon 역할로 진짜 함수를 부른다. 헤드리스 크로미움은 `Notification.permission`이 늘 'denied'라 시험에서 바꿔 끼운다.
 
 ## 거래 규칙 (코드 위쪽 설정값)
 - 시작 잔고 `START` 10,000 USDC, 월급 `SALARY` 10,000 USDC를 매달 1일 0시(기기 시간)에 지갑으로. `paidThrough` = 마지막으로 준 달(연×12+월), `deposited` = 총 입금. 누적 손익 = 총자산 − 총 입금.
@@ -57,7 +67,7 @@
 ## 작업 규칙
 - 사이버머니를 현금으로 바꿔 주는 기능(환전·재매입)은 만들지 않는다. 사이버머니 유료 판매 같은 결제 기능은 사용자가 법률 확인을 마쳤다고 말하기 전에는 만들지 않는다.
 - 결제, 외부 공개, 개인정보를 다루는 변경은 실행 전에 사용자에게 확인받는다.
-- 비밀값(API 키 등)은 코드에 넣지 않는다. 지금 구조는 키가 필요 없다.
+- 비밀값(API 키 등)은 코드에 넣지 않는다. 앱에는 공개용 publishable 키만. 엔진은 Supabase 가 넣어 주는 `SUPABASE_DB_URL`을 쓰고, cron 은 열쇠를 표에서 읽는다.
 - 휴대폰 폭(약 400px)에서 화면이 가로로 넘치지 않는지 확인한다.
 - 바이낸스 API는 클라우드 개발 환경에서 지역 제한으로 막혀 있다. 클로드 코드 웹 환경의 브라우저에서는 웹소켓이 프록시에 막히므로 화면 시험은 REST 방식으로 하고, 웹소켓 자료 형식은 Node의 `WebSocket`으로 확인한다. OKX 웹소켓 처리는 `__mock24.okx.onMsg`에 메시지를 직접 넣어 시험한다. OKX 웹소켓은 443 포트(`wss://ws.okx.com/ws/v5/public`)로 연결한다(8443은 이 환경에서 막힘).
 - 친구들이 이미 쓰고 있다: 저장 형식(`mock24.v2`)과 기존 코인 id를 바꾸면 기록이 깨진다. 바꿔야 하면 `migrate()`처럼 옮기는 코드를 함께 넣고 예전 기록으로 시험한다.
