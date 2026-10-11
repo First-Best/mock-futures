@@ -17,7 +17,7 @@
 - 연습용 가짜 시세에서는 저장하지 않는 별도 계좌(`S.sim`)를 쓴다. 가짜 가격이 진짜 기록을 청산하지 않게 하려는 것.
 
 ## 순위 (2026-10-11 추가)
-- 서버: Supabase 무료 프로젝트(서울). 표·규칙·함수는 `supabase.sql` (SQL Editor에서 실행, 여러 번 실행해도 됨). 앱 위쪽 `BOARD_URL`·`BOARD_KEY`(publishable key, 공개해도 되는 키)가 비어 있으면 순위 탭은 "연결하는 중"만 보여 준다. secret key는 절대 코드에 넣지 않는다.
+- 서버: Supabase 무료 프로젝트(서울), 2026-10-11 연결 (`qilswrphnmshaewzjtgj`). 사용자가 대시보드를 관리한다. 표·규칙·함수는 `supabase.sql` (SQL Editor에서 실행, 여러 번 실행해도 됨). 앱 위쪽 `BOARD_URL`·`BOARD_KEY`(publishable key, 공개해도 되는 키)가 비어 있으면 순위 탭은 "연결하는 중"만 보여 준다. secret key는 절대 코드에 넣지 않는다.
 - 표: `players`(닉네임, `state` = 지갑·총 입금·월급 받은 달·보유 포지션, `resets`), `player_secrets`(비밀 코드 sha256, 아무도 못 읽음), `events`(거래·입금 기록, `server_at` 서버 시각). 쓰기는 `join_game`·`report`·`leave_game` 함수로만.
 - 브라우저가 `mock24.me`({id, nick, secret})로 참가 정보를 기억한다. 상태가 바뀌면 1.5초 뒤, 바뀐 게 없으면 5분마다 `report`. 거래·월급·다시 시작은 `S.outbox`에 쌓았다가 함께 보낸다.
 - 보는 사람의 브라우저가 각자의 `state`를 지금 시세로 계산(`valueOf`: 밀린 월급 더하기, 교차·격리 청산 어림)해서 순위를 매긴다. 순위 탭이 열려 있으면 10초, 아니면 1분마다 `updated_at` 이후 바뀐 사람만 받고 2분마다 전체를 받는다.
