@@ -242,6 +242,27 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
 .modal .acts { display: flex; justify-content: flex-end; gap: 8px; }
 .modal .acts button { border-radius: 8px; padding: 8px 14px; border: 1px solid var(--line); background: var(--panel-2); }
 .modal .acts .danger { background: var(--up); color: #fff; border-color: transparent; }
+/* 로그인·내 계정 */
+.acct-btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: 12.5px; font-weight: 600; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.acct-btn.in { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.acct-btn.in::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 6px; vertical-align: 1px; }
+@media (max-width: 700px) { .top-in > * { order: 3; } .top-in > .brand { order: 0; } .top-in > .mkt-btn { order: 1; } .top-in > .acct-btn { order: 2; margin-left: auto; } }
+.acct { position: relative; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.acct form, .acct .view { display: grid; gap: 10px; }
+.acct label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.acct .inp input { font-family: var(--font-ui); font-size: 16px; }
+.acct .main { background: var(--lamp); color: var(--lamp-ink); border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 700; font-size: 15px; }
+.acct .main:disabled { opacity: .6; }
+.acct .links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; }
+.acct .err { color: var(--up); font-size: 12.5px; margin: 0; }
+.acct .err:empty { display: none; }
+.acct .box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
+.acct .box h4 { margin: 0; font-size: 13px; }
+.acct .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.acct .row .btn-sm { padding: 6px 11px; font-size: 13px; }
+.linkish { background: none; border: 0; padding: 4px 0; color: var(--fg); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; font-family: var(--font-ui); }
+.modal-x { position: absolute; top: 8px; right: 8px; background: none; border: 0; font-size: 20px; line-height: 1; padding: 6px 9px; color: var(--muted); }
+.auth-join { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (prefers-reduced-motion: no-preference) { .toast { animation: tin .18s ease-out; } @keyframes tin { from { transform: translateY(6px); opacity: 0; } } }
 </style>
 </head>
@@ -250,6 +271,7 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
 <header class="top">
   <div class="top-in" style="position:relative">
     <div class="brand"><span class="sign">24/7</span><span>24시 모의선물</span></div>
+    <button class="acct-btn" id="acctBtn" type="button" hidden>로그인</button>
     <button class="mkt-btn" id="mktBtn" aria-haspopup="listbox" aria-expanded="false">
       <b id="mktName">비트코인</b><span class="tk" id="mktTk">BTC</span><span class="car">▼</span>
     </button>
@@ -427,11 +449,17 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
           <div class="inp"><input id="nickIn" maxlength="12" autocomplete="off" placeholder="닉네임 (한글·영문·숫자 2~12자)" aria-label="닉네임"></div>
           <button class="wf-run" id="joinBtn" type="submit">순위에 참가하기</button>
         </form>
+        <div class="auth-join" id="authJoin" hidden>
+          <button class="wf-run" id="joinAuthBtn" type="button">가입하고 순위에 참가하기</button>
+          <button class="btn-sm" id="loginAuthBtn" type="button">이미 아이디가 있어요 (로그인)</button>
+        </div>
         <p class="hint" id="joinHint" hidden>참가하면 닉네임, 총자산, 수익률, 보유 포지션(익절·손절 포함), 예약 주문, 거래·입금 기록이 이 앱을 여는 <b>모든 사람에게 공개</b>돼요. 실명이나 연락처는 닉네임에 넣지 마세요. 참가하면 '다른 기기에서 이어하기' 링크로 휴대폰·컴퓨터를 오가며 같은 기록으로 할 수 있어요.</p>
         <div class="board-me" id="boardMe" hidden>
           <span><b id="meNick"></b>(으)로 참가 중</span>
           <span class="spacer"></span>
           <div class="seg" id="sortSeg"><button type="button" data-sort="ret" aria-pressed="true">수익률 순</button><button type="button" data-sort="pnl" aria-pressed="false">손익금 순</button></div>
+          <button class="btn-sm" id="addLoginBtn" type="button" hidden>아이디 만들기</button>
+          <button class="btn-sm" id="acctBtn2" type="button" hidden>내 계정</button>
           <button class="btn-sm" id="moveBtn2" type="button">다른 기기에서 이어하기</button>
           <button class="btn-sm" id="leaveBtn" type="button">순위에서 나가기</button>
         </div>
@@ -469,6 +497,53 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
     <p id="modalBody"></p>
     <div class="inp" id="modalLinkBox" hidden><input id="modalLink" readonly aria-label="이어하기 링크"></div>
     <div class="acts"><button id="modalNo">취소</button><button class="danger" id="modalYes">확인</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="acctModal" hidden>
+  <div class="modal acct" role="dialog" aria-modal="true" aria-labelledby="acctTitle">
+    <button class="modal-x" id="acctX" type="button" aria-label="닫기">×</button>
+    <h3 id="acctTitle">로그인</h3>
+    <form id="loginForm" novalidate>
+      <p>로그인하면 휴대폰·컴퓨터·다른 브라우저 어디서든 같은 기록으로 이어서 해요.</p>
+      <label>아이디<span class="inp"><input id="liId" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" inputmode="text"></span></label>
+      <label>비밀번호<span class="inp"><input id="liPw" type="password" autocomplete="current-password" maxlength="72"></span></label>
+      <p class="err" id="liErr"></p>
+      <button class="main" id="liBtn" type="submit">로그인</button>
+      <p class="hint" id="liNote">로그인하면 이 기기에는 계정에 저장된 기록이 보여요.</p>
+      <div class="links"><button class="linkish" id="toSignup" type="button">처음이에요 (가입하기)</button><button class="linkish" id="later1" type="button">로그인 없이 해 보기</button></div>
+    </form>
+    <form id="signupForm" novalidate hidden>
+      <p id="suLead"></p>
+      <label id="suNickBox">닉네임 (순위에 보이는 이름, 한글·영문·숫자 2~12자)<span class="inp"><input id="suNick" maxlength="12" autocomplete="nickname"></span></label>
+      <label>아이디 (영문 소문자·숫자·밑줄 4~20자)<span class="inp"><input id="suId" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20"></span></label>
+      <label>비밀번호 (6자 이상)<span class="inp"><input id="suPw" type="password" autocomplete="new-password" maxlength="72"></span></label>
+      <label>비밀번호 확인<span class="inp"><input id="suPw2" type="password" autocomplete="new-password" maxlength="72"></span></label>
+      <p class="err" id="suErr"></p>
+      <button class="main" id="suBtn" type="submit">가입하기</button>
+      <p class="hint" id="suNote"></p>
+      <div class="links"><button class="linkish" id="toLogin" type="button">이미 아이디가 있어요 (로그인)</button><button class="linkish" id="later2" type="button">나중에</button></div>
+    </form>
+    <div class="view" id="meView" hidden>
+      <p id="meWho"></p>
+      <div class="box">
+        <h4>체결 알림</h4>
+        <p class="hint" id="pushTxt"></p>
+        <div class="row"><button class="btn-sm" id="pushOn" type="button" hidden>알림 켜기</button><button class="btn-sm" id="pushTest" type="button" hidden>시험 알림 보내기</button><button class="btn-sm" id="pushOff" type="button" hidden>이 기기 알림 끄기</button></div>
+      </div>
+      <div class="box">
+        <h4>비밀번호 바꾸기</h4>
+        <form id="pwForm" novalidate>
+          <input id="pwUser" autocomplete="username" hidden>
+          <span class="inp"><input id="pwOld" type="password" autocomplete="current-password" placeholder="지금 비밀번호" aria-label="지금 비밀번호" maxlength="72"></span>
+          <span class="inp"><input id="pwNew" type="password" autocomplete="new-password" placeholder="새 비밀번호 (6자 이상)" aria-label="새 비밀번호" maxlength="72"></span>
+          <p class="err" id="pwErr"></p>
+          <div class="row"><button class="btn-sm" id="pwBtn" type="submit">바꾸기</button><span class="hint">바꾸면 다른 기기는 다시 로그인해야 해요.</span></div>
+        </form>
+      </div>
+      <p class="hint" id="engineTxt"></p>
+      <div class="links"><button class="linkish" id="logoutBtn" type="button">로그아웃</button><button class="linkish" id="delAcctBtn" type="button">계정 지우기</button></div>
+    </div>
   </div>
 </div>
 
@@ -615,10 +690,10 @@ function load() {
   try { const o = JSON.parse(localStorage.getItem(OLD_KEY)); if (o && typeof o.balance === 'number') return migrate(o); } catch (e) {}
   return freshState();
 }
-let S = load(), started = false;
+let S = load(), started = false, leaving = false;   // leaving = 로그아웃·계정 바꾸고 새로 여는 중 (그 사이 저장하지 않아요)
 // rev = 기록이 실제로 바뀐 횟수. 같은 브라우저의 다른 탭(창)이 더 새 기록을 저장해 뒀으면 덮어쓰지 않고 그걸 가져와요.
 function persist() {
-  if (S.sim) return;
+  if (S.sim || leaving) return;
   const o = stored(); if (o && o.rev > (S.rev || 0)) return adopt(o);
   try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {}
 }
@@ -1724,15 +1799,19 @@ const boardOn = () => !!(BOARD_URL && BOARD_KEY);
 let me = null;   // { id, nick, secret } 이 브라우저의 참가 정보
 try { me = JSON.parse(localStorage.getItem('mock24.me')) || null; } catch (e) {}
 // synced = 시작할 때 서버의 내 기록과 맞춰 봤는지. 맞춰 보기 전에는 알리지 않아요 (다른 기기에서 한 더 새 기록을 덮어쓰지 않게).
-const board = { rows: new Map(), since: null, loading: false, loaded: false, err: '', sort: 'ret', tick: 0, lastSnap: '', lastSent: 0, sending: false, rt: null, drawn: 0, synced: false };
+const board = { rows: new Map(), since: null, loading: false, loaded: false, err: '', sort: 'ret', tick: 0, lastSnap: '', lastSent: 0, lastPing: 0, sending: false, rt: null, drawn: 0, synced: false, base: null, syncedAt: 0, pulling: false };
+// 서버가 로그인·자동 체결을 지원하는지 (supabase.sql 새 버전을 실행했는지). ok: null = 아직 모름, pushKey = 알림 서명 공개 열쇠, engineAt = 서버 엔진이 마지막으로 돈 시각
+const auth = { ok: null, pushKey: null, engineAt: null };
 const r2 = v => Math.round(v * 100) / 100;
 const sig = v => +(+v).toPrecision(10);
 // 서버에 올리는 내 상태. 다른 기기에서 이어 할 수 있게 익절·손절·예약 주문·바뀐 횟수(rev)까지 담아요. (예전 앱은 모르는 칸을 무시해요)
 function snapshot() {
   return { v: 1, rev: S.rev || 0, bal: r2(S.balance), dep: S.deposited, pt: S.paidThrough,
-    pos: S.positions.map(p => ({ c: p.coin, d: p.dir, sz: sig(p.size), e: sig(p.entry), m: p.mode, mg: r2(p.margin), lev: p.lev, tp: p.tp || null, sl: p.sl || null, f: sig(p.fees || 0), t: p.openedAt, id: p.id })),
-    ord: S.orders.map(o => ({ id: o.id, c: o.coin, d: o.dir, px: sig(o.px), mg: r2(o.margin), lev: o.lev, m: o.mode, tp: o.tp || null, sl: o.sl || null, t: o.at, res: r2(o.res || 0), ...(o.ro ? { ro: 1 } : {}) })) };
+    pos: S.positions.map(p => ({ c: p.coin, d: p.dir, sz: sig(p.size), e: sig(p.entry), m: p.mode, mg: r2(p.margin), lev: p.lev, tp: p.tp || null, sl: p.sl || null, f: sig(p.fees || 0), t: p.openedAt, id: p.id, ...coinMeta(p.coin) })),
+    ord: S.orders.map(o => ({ id: o.id, c: o.coin, d: o.dir, px: sig(o.px), mg: r2(o.margin), lev: o.lev, m: o.mode, tp: o.tp || null, sl: o.sl || null, t: o.at, res: r2(o.res || 0), ...(o.ro ? { ro: 1 } : {}), ...coinMeta(o.coin) })) };
 }
+// 서버 엔진용: 종목 최대 레버리지(유지증거금률 계산)와 이름(알림 문장)
+const coinMeta = c => ({ ...(info[c]?.maxLev ? { mx: info[c].maxLev } : {}), ...(nameOf(c) !== tick(c) ? { nm: nameOf(c) } : {}) });
 // 서버 상태 → 이 브라우저 기록
 function fromSnap(st) {
   const s = freshState();
@@ -1759,29 +1838,47 @@ function mergeHistory(a, b) {
   const key = h => [h.type, h.at, h.coin || '', h.reason || ''].join('|'), seen = new Set(a.map(key));
   return [...a, ...b.filter(h => !seen.has(key(h)))].sort((x, y) => y.at - x.at).slice(0, 500);
 }
-// 같은 참가 정보로 다른 기기에서 더 많이 거래했으면(서버의 rev가 더 크면) 그 기록을 가져와요
+// 서버 기록 가져오기. why = 'lost' 이면 이 기기에서 아직 못 보낸 거래가 있었는데 서버 쪽이 먼저 바뀐 경우예요.
+async function adoptServer(row, why) {
+  const hist = await serverHistory(me.id).catch(() => []);
+  const s = fromSnap(row.state), keep = why === 'lost' ? S.history.filter(h => h.at <= board.syncedAt || h.first) : S.history;
+  s.lastSeen = Math.min(Date.now(), +row.state.ls > 0 ? +row.state.ls : Date.parse(row.updated_at) || Date.now());
+  s.createdAt = S.createdAt; s.history = mergeHistory(keep, hist);
+  S = s; S.outbox = []; board.base = s.rev; board.syncedAt = Date.now(); persist();
+  board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now();
+  if (started) renderAll();
+  toast(why === 'lost' ? '다른 기기나 서버 자동 체결로 먼저 바뀐 기록이 있어서 서버 기록으로 맞췄어요. 방금 이 기기에서 한 거래가 빠졌을 수 있으니 확인해 주세요.' : '다른 기기나 서버 자동 체결로 바뀐 기록을 가져왔어요.', 7000);
+}
+// 서버의 내 기록과 맞춰 보기 (시작할 때, 다시 보일 때, 순위에서 내 기록이 바뀐 걸 봤을 때).
+// base = 이 기기가 마지막으로 맞춘 서버 rev. 서버 rev 가 base 와 다르면 다른 기기나 서버 엔진이 바꾼 거라 서버 기록을 가져와요.
 async function pullMine() {
+  if (!me || S.sim || !boardOn() || board.pulling) return false;
+  board.pulling = true;
   try {
-    if (!me || S.sim || !boardOn()) return false;
     const r = await fetch(BOARD_URL + `/rest/v1/players?id=eq.${me.id}&select=updated_at,state`, { headers: boardHeaders() });
     if (!r.ok) return false;
     const row = (await r.json())[0], st = row?.state;
-    if (!st || typeof st.bal !== 'number' || typeof st.rev !== 'number' || st.rev <= (S.rev || 0)) return false;
-    const hist = await serverHistory(me.id).catch(() => []);
-    const s = fromSnap(st);
-    s.lastSeen = Math.min(Date.now(), Date.parse(row.updated_at) || Date.now());
-    s.createdAt = S.createdAt; s.history = mergeHistory(S.history, hist);
-    S = s; persist(); board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now();
-    toast('다른 기기(브라우저)에서 한 거래를 가져왔어요.', 6000);
-    return true;
+    board.synced = true;
+    if (!st || typeof st.bal !== 'number') return false;
+    const sr = typeof st.rev === 'number' ? st.rev : 0;
+    if (board.base == null ? sr > (S.rev || 0) : sr !== board.base) { await adoptServer(row, board.base != null && (S.rev || 0) > board.base ? 'lost' : ''); return true; }
+    board.base = sr; board.syncedAt = Date.now();
+    // 서버 엔진이 이 기록을 어디까지 확인했는지 (바뀐 게 없을 때) → 되짚기를 거기서부터
+    if (sr === (S.rev || 0) && +st.ls > (S.lastSeen || 0)) S.lastSeen = Math.min(Date.now(), +st.ls);
+    return false;
   } catch (e) { return false; }
-  finally { board.synced = true; }
+  finally { board.pulling = false; }
 }
 // 거래·입금 기록을 모아 두었다가 다음 알림 때 함께 보내요 (서버가 서버 시각을 붙여 쌓아요)
 function note(ev) {
   if (!me || S.sim) return;
   (S.outbox ||= []).push({ ...ev, at: ev.at || Date.now() });
   if (S.outbox.length > 400) S.outbox.splice(0, S.outbox.length - 400);
+}
+// 앱이 뒤에 숨어 있을 때 체결·청산되면 알림을 맡겨요 (서버 엔진이 1분 안에 내 기기들로 보내요)
+function fired(html, ms, title, body) {
+  toast(html, ms);
+  if (document.hidden && me?.login && auth.ok) note({ k: 'nt', t: title, b: body || '' });
 }
 function boardHeaders() {
   const h = { apikey: BOARD_KEY, 'Content-Type': 'application/json' };
@@ -1791,26 +1888,41 @@ function boardHeaders() {
 async function rpc(fn, body) {
   const r = await fetch(BOARD_URL + '/rest/v1/rpc/' + fn, { method: 'POST', headers: boardHeaders(), body: JSON.stringify(body) });
   const j = await r.json().catch(() => null);
-  if (!r.ok) throw new Error(j?.message || 'HTTP ' + r.status);
+  if (!r.ok) { const e = new Error(j?.message || 'HTTP ' + r.status); e.status = r.status; e.code = j?.code; throw e; }
   return j;
 }
+const noFn = e => e?.status === 404 || e?.code === 'PGRST202';   // 서버에 아직 그 함수가 없음 (supabase.sql 을 새로 실행하기 전)
 function scheduleReport() { if (!me || S.sim || !boardOn()) return; clearTimeout(board.rt); board.rt = setTimeout(sendReport, 1500); }
-async function sendReport() {
-  if (!me || S.sim || !boardOn() || board.sending || !board.synced) return;
-  const snap = JSON.stringify(snapshot()), out = (S.outbox || []).slice(0, 200);
-  // 바뀐 게 없으면 5분에 한 번만 (최근 접속 표시용)
-  if (snap === board.lastSnap && !out.length && !S.resetPending && Date.now() - board.lastSent < 5 * 60e3) return;
+async function sendReport(force) {
+  if (!me || S.sim || !boardOn() || board.sending) return false;
+  if (!board.synced) { pullMine(); return false; }   // 서버 기록과 맞춰 보기 전에는 알리지 않아요 (다른 기기의 더 새 기록을 덮어쓰지 않게)
+  const core = snapshot(), snap = JSON.stringify(core), out = (S.outbox || []).slice(0, 200);
+  // 바뀐 게 없으면 5분에 한 번만 (최근 접속 표시용). 그 사이에는 1분마다 '앱 열려 있음'만 알려요 (서버 엔진이 끼어들지 않게)
+  if (!force && snap === board.lastSnap && !out.length && !S.resetPending && Date.now() - board.lastSent < 5 * 60e3) {
+    if (auth.ok && Date.now() - board.lastPing > 55e3) { board.lastPing = Date.now(); rpc('ping', { p_id: me.id, p_secret: me.secret }).catch(() => {}); }
+    return true;
+  }
   board.sending = true;
   try {
-    await rpc('report', { p_id: me.id, p_secret: me.secret, p_state: JSON.parse(snap), p_events: out, p_reset: !!S.resetPending });
-    board.lastSnap = snap; board.lastSent = Date.now();
+    if (auth.ok) {
+      const r = await rpc('sync_state', { p_id: me.id, p_secret: me.secret, p_state: { ...core, ls: S.lastSeen }, p_events: out, p_base: board.base ?? null });
+      if (r?.conflict) { await adoptServer({ state: r.state, updated_at: r.updated_at }, (S.rev || 0) > (board.base ?? -1) ? 'lost' : ''); return false; }
+    } else await rpc('report', { p_id: me.id, p_secret: me.secret, p_state: core, p_events: out, p_reset: !!S.resetPending });
+    board.base = core.rev; board.syncedAt = Date.now();
+    board.lastSnap = snap; board.lastSent = board.lastPing = Date.now();
     S.outbox.splice(0, out.length); S.resetPending = false; persist();
-    const row = board.rows.get(me.id); if (row) { row.state = JSON.parse(snap); row.updated_at = new Date().toISOString(); }
+    const row = board.rows.get(me.id); if (row) { row.state = core; row.updated_at = new Date().toISOString(); }
+    return true;
   } catch (e) {
-    if (/auth/.test(e.message)) { forgetMe(); toast('순위 서버에서 내 참가 기록을 찾지 못해서 참가를 해제했어요. 다시 참가할 수 있어요.', 8000); }
+    if (/auth/.test(e.message)) {
+      const was = me?.login; forgetMe();
+      if (was) { toast('비밀번호가 바뀌었거나 다른 곳에서 로그아웃돼서 다시 로그인해야 해요.', 9000); openAcct('login'); }
+      else toast('순위 서버에서 내 참가 기록을 찾지 못해서 참가를 해제했어요. 아이디가 있으면 로그인해 주세요.', 8000);
+    } else if (noFn(e) && auth.ok) { auth.ok = false; renderBoard(true); }
+    return false;
   } finally { board.sending = false; }
 }
-function forgetMe() { me = null; try { localStorage.removeItem('mock24.me'); } catch (e) {} S.outbox = []; persist(); renderBoard(true); }
+function forgetMe() { me = null; try { localStorage.removeItem('mock24.me'); } catch (e) {} S.outbox = []; board.base = null; persist(); renderBoard(true); renderAcct(); }
 async function fetchBoard(full) {
   if (!boardOn() || board.loading) return;
   board.loading = true;
