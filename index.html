@@ -24,6 +24,8 @@
   --lamp-ink: #2b1d00;
   --ok: #138a52;
   --warn: #b76e00;
+  --tp: #138a52;        /* 익절 줄 */
+  --sl: #8a4fd6;        /* 손절 줄 */
   --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --r: 10px;
@@ -33,13 +35,13 @@
   :root:not([data-theme="light"]) {
     --bg: #0c0f14; --panel: #131820; --panel-2: #0f141b; --line: #222a36; --fg: #e7eaf0; --muted: #8b94a6;
     --up: #ff5563; --up-soft: rgba(255, 85, 99, .12); --down: #5b93ff; --down-soft: rgba(91, 147, 255, .12);
-    --lamp: #f5b335; --lamp-ink: #241800; --ok: #3ccf8a; --warn: #f0a63a; color-scheme: dark;
+    --lamp: #f5b335; --lamp-ink: #241800; --ok: #3ccf8a; --warn: #f0a63a; --tp: #3ccf8a; --sl: #b48cff; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0c0f14; --panel: #131820; --panel-2: #0f141b; --line: #222a36; --fg: #e7eaf0; --muted: #8b94a6;
   --up: #ff5563; --up-soft: rgba(255, 85, 99, .12); --down: #5b93ff; --down-soft: rgba(91, 147, 255, .12);
-  --lamp: #f5b335; --lamp-ink: #241800; --ok: #3ccf8a; --warn: #f0a63a; color-scheme: dark;
+  --lamp: #f5b335; --lamp-ink: #241800; --ok: #3ccf8a; --warn: #f0a63a; --tp: #3ccf8a; --sl: #b48cff; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -111,6 +113,11 @@ button { cursor: pointer; }
 #chart { height: 430px; }
 @media (max-width: 700px) { #chart { height: 320px; } }
 .note-closed { font-size: 12px; padding: 6px 10px; color: var(--muted); border-top: 1px dashed var(--line); }
+.ph .spacer { flex: 1; }
+.seg .lb { font-size: 12px; color: var(--muted); padding: 3px 2px 3px 6px; }
+#chart { position: relative; }
+#chart.grab, #chart.grab *, #chart.dragging, #chart.dragging * { cursor: ns-resize !important; }
+.chart-hint { margin: 0; font-size: 11.5px; color: var(--muted); padding: 6px 10px; border-top: 1px solid var(--line); }
 
 /* 호가 */
 .book { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 12px; }
@@ -159,6 +166,9 @@ button { cursor: pointer; }
 .lock { margin: 0; font-size: 12px; line-height: 1.5; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--lamp) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--lamp) 40%, var(--line)); }
 .lev input:disabled { opacity: .55; cursor: not-allowed; }
 .ok { color: var(--ok); } .warn-t { color: var(--warn); }
+.lnk { background: none; border: 0; padding: 0; color: var(--fg); text-decoration: underline; text-underline-offset: 2px; font-size: 12px; }
+.x { background: none; border: 0; padding: 0 2px; color: var(--muted); font-size: 13px; line-height: 1; }
+.x:hover { color: var(--fg); }
 
 /* 포지션 */
 .tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
@@ -214,6 +224,9 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
 .toasts { position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; z-index: 50; max-width: min(360px, calc(100vw - 24px)); }
 .toast { background: var(--fg); color: var(--bg); border-radius: 9px; padding: 10px 12px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 .toast b { font-family: var(--font-num); }
+.toast-act { margin-left: 10px; background: none; border: 1px solid currentColor; color: inherit; border-radius: 6px; padding: 1px 8px; font-size: 12px; }
+.book .row[data-px] { cursor: pointer; }
+.book .row[data-px]:hover { background: var(--panel-2); }
 .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; z-index: 60; padding: 16px; }
 .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; max-width: 380px; width: 100%; display: grid; gap: 12px; }
 .modal h3 { margin: 0; font-size: 16px; }
@@ -261,6 +274,15 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
   <button class="btn-sm" id="retryBtn">다시 연결</button>
   <button class="btn-sm" id="simBtn">연습 시세로 둘러보기</button>
 </div>
+<div class="banner" id="inappBanner" hidden>
+  <p><b>앱 안의 브라우저(카카오톡 등)로 열었어요.</b> 거래 기록은 브라우저마다 따로 저장돼서, 여기서 한 거래는 크롬·사파리에서 보이지 않아요. 늘 같은 브라우저로 열어 주세요. 화면의 <b>⋮</b>(더보기)나 공유 버튼 → <b>다른 브라우저로 열기</b>.</p>
+  <button class="btn-sm" id="inappOpen" hidden>기본 브라우저로 열기</button>
+  <button class="btn-sm" id="inappClose">닫기</button>
+</div>
+<div class="banner" id="awayBanner" hidden>
+  <p id="awayTxt"></p>
+  <button class="btn-sm" id="awayClose">확인</button>
+</div>
 
 <main class="app">
   <section class="panel p-chart" aria-label="차트">
@@ -269,8 +291,11 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
       <div class="seg" id="ivSeg">
         <button data-iv="1m">1분</button><button data-iv="5m">5분</button><button data-iv="15m" aria-pressed="true">15분</button><button data-iv="1h">1시간</button><button data-iv="4h">4시간</button><button data-iv="1d">1일</button>
       </div>
+      <span class="spacer"></span>
+      <div class="seg" id="lineSeg" title="예약·익절·손절 가격 줄 모양"><span class="lb">줄</span><button type="button" data-ls="2">점선</button><button type="button" data-ls="0">실선</button></div>
     </div>
     <div id="chart"></div>
+    <p class="chart-hint" id="chartHint" hidden></p>
     <div class="note-closed" id="closedNote" hidden></div>
   </section>
 
@@ -292,6 +317,15 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
 
   <section class="panel p-order" aria-label="주문">
     <form class="order" id="orderForm" novalidate>
+      <div class="field">
+        <div class="lb"><span>주문 방식</span></div>
+        <div class="seg full" id="typeSeg"><button type="button" data-type="market" aria-pressed="true">시장가 (바로)</button><button type="button" data-type="limit" aria-pressed="false">지정가 (예약)</button></div>
+      </div>
+      <div class="field" id="limitField" hidden>
+        <label for="limitPx"><span>지정가 (이 가격에 닿으면 체결)</span><button type="button" class="lnk" id="limitNow">지금 가격</button></label>
+        <div class="inp"><input id="limitPx" type="number" step="any" min="0" inputmode="decimal"><span class="unit">USDC</span></div>
+        <p class="hint">롱(사기)은 지금보다 낮은 가격, 숏(팔기)은 지금보다 높은 가격에 예약해요. 차트의 노란 줄을 끌거나 호가를 눌러서 바꿀 수도 있어요.</p>
+      </div>
       <div class="field">
         <div class="lb"><span>증거금 방식</span></div>
         <div class="seg full" id="modeSeg"><button type="button" data-mode="cross" aria-pressed="true">교차 (Cross)</button><button type="button" data-mode="isolated" aria-pressed="false">격리 (Isolated)</button></div>
@@ -317,8 +351,8 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
       <div class="summary">
         <div><span>포지션 규모</span><span class="num" id="sumNotional">–</span></div>
         <div><span>예상 수량</span><span class="num" id="sumSize">–</span></div>
-        <div><span>롱 누른 뒤 청산가 (예상)</span><span class="num up" id="sumLiqL">–</span></div>
-        <div><span>숏 누른 뒤 청산가 (예상)</span><span class="num down" id="sumLiqS">–</span></div>
+        <div><span id="sumLiqLLb">롱 누른 뒤 청산가 (예상)</span><span class="num up" id="sumLiqL">–</span></div>
+        <div><span id="sumLiqSLb">숏 누른 뒤 청산가 (예상)</span><span class="num down" id="sumLiqS">–</span></div>
         <div><span>수수료 (가정 0.05%)</span><span class="num" id="sumFee">–</span></div>
       </div>
       <div class="go">
@@ -328,6 +362,8 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
     </form>
     <p class="rules">가상 돈으로만 거래해요. <b>매달 1일 0시</b>(이 기기 시간)에 가상 월급 10,000 USDC가 지갑에 들어오고, 이익과 손실은 그대로 이어져요.</p>
     <p class="rules">한 종목에는 포지션이 하나예요. 같은 방향 주문은 더해져 평균 진입가가 되고, 반대 방향 주문은 포지션을 줄이거나 뒤집어요.</p>
+    <p class="rules"><b>지정가(예약)</b> 주문은 시세가 그 가격에 닿으면 그 가격으로 체결돼요. 기다리는 동안 증거금과 수수료만큼 돈이 묶여요(포지션을 줄이기만 하는 예약은 안 묶여요). 앱을 닫아 둬도 다시 열면 그 사이의 체결·익절·손절·청산을 시간 순서대로 되짚어요.</p>
+    <p class="rules"><b>처음부터 다시 하기는 없어요.</b> 돈을 모두 잃으면 다음 달 1일 월급을 기다려야 해요.</p>
     <p class="rules"><b>교차</b>는 지갑 현금 전체가 모든 교차 포지션의 담보라 손익이 서로 엮여요. 교차 자산(지갑 현금 + 교차 평가손익)이 교차 포지션들의 유지증거금 합계보다 작아지면 교차 포지션이 한꺼번에 청산되고 남은 담보도 잃어요. <b>격리</b>는 그 포지션에 넣은 증거금만 잃어요.</p>
     <p class="rules">실제 시세는 <a href="https://hyperliquid.xyz" target="_blank" rel="noopener">Hyperliquid</a> 공개 자료를 따르고, 주식·지수·원자재는 <a href="https://trade.xyz" target="_blank" rel="noopener">trade[XYZ]</a> 등 Hyperliquid 위 시장 가격이에요. 종목 이름 옆에 <b>OKX</b>가 붙은 종목은 <a href="https://www.okx.com" target="_blank" rel="noopener">OKX</a> 거래소의 주식·원자재 선물 시세예요. 정규장이 닫힌 시간(주말·야간)에는 거래자들이 만드는 가격이라 실제 주가와 달라질 수 있어요. 수수료 0.05%, 펀딩비 미반영, 유지증거금은 최대 레버리지 기준 초기증거금의 절반으로 계산해요.</p>
   </section>
@@ -335,6 +371,7 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
   <section class="panel p-pos" aria-label="내 거래">
     <div class="tabs" role="tablist">
       <button role="tab" data-tab="pos" aria-selected="true">보유 포지션<span class="cnt" id="posCnt">0</span></button>
+      <button role="tab" data-tab="ord" aria-selected="false">예약 주문<span class="cnt" id="ordCnt">0</span></button>
       <button role="tab" data-tab="hist" aria-selected="false">거래·입금 기록<span class="cnt" id="histCnt">0</span></button>
       <button role="tab" data-tab="board" aria-selected="false">순위<span class="cnt" id="boardCnt">0</span></button>
       <button role="tab" data-tab="whatif" aria-selected="false">만약 그때 샀다면</button>
@@ -350,10 +387,18 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
         <span>격리 증거금 <b class="num" id="isoTxt">–</b></span>
         <span>평가손익 <b class="num" id="upnlTxt">–</b></span>
         <span title="교차 포지션 유지증거금 합계 ÷ 교차 자산. 100%가 되면 교차 포지션이 모두 청산돼요.">교차 위험도 <b class="num" id="riskTxt">–</b></span>
+        <span>예약에 묶인 돈 <b class="num" id="resTxt">0.00</b></span>
         <span>총 입금 <b class="num" id="depTxt">10,000.00</b></span>
         <span class="spacer"></span>
-        <button class="btn-sm" id="resetBtn">처음부터 다시</button>
+        <button class="btn-sm" id="moveBtn" type="button">다른 기기·브라우저로 옮기기</button>
       </div>
+    </div>
+    <div id="tab-ord" hidden>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>종목</th><th>방향 · 방식</th><th>지정가</th><th>지금 가격 (남은 거리)</th><th>증거금 · 규모</th><th>익절 / 손절</th><th>주문 시각</th><th></th></tr></thead>
+        <tbody id="ordRows"></tbody>
+      </table></div>
+      <div class="empty" id="ordEmpty">예약 주문이 없어요. 주문 칸에서 <b>지정가 (예약)</b>를 고르고 가격을 정하면, 그 가격에 닿을 때 자동으로 체결돼요.</div>
     </div>
     <div id="tab-hist" hidden>
       <div class="tbl-wrap"><table>
@@ -369,11 +414,12 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
           <div class="inp"><input id="nickIn" maxlength="12" autocomplete="off" placeholder="닉네임 (한글·영문·숫자 2~12자)" aria-label="닉네임"></div>
           <button class="wf-run" id="joinBtn" type="submit">순위에 참가하기</button>
         </form>
-        <p class="hint" id="joinHint" hidden>참가하면 닉네임, 총자산, 수익률, 보유 포지션, 거래·입금 기록이 이 앱을 여는 <b>모든 사람에게 공개</b>돼요. 실명이나 연락처는 닉네임에 넣지 마세요. 참가 정보는 이 브라우저에만 저장돼요.</p>
+        <p class="hint" id="joinHint" hidden>참가하면 닉네임, 총자산, 수익률, 보유 포지션(익절·손절 포함), 예약 주문, 거래·입금 기록이 이 앱을 여는 <b>모든 사람에게 공개</b>돼요. 실명이나 연락처는 닉네임에 넣지 마세요. 참가하면 '다른 기기에서 이어하기' 링크로 휴대폰·컴퓨터를 오가며 같은 기록으로 할 수 있어요.</p>
         <div class="board-me" id="boardMe" hidden>
           <span><b id="meNick"></b>(으)로 참가 중</span>
           <span class="spacer"></span>
           <div class="seg" id="sortSeg"><button type="button" data-sort="ret" aria-pressed="true">수익률 순</button><button type="button" data-sort="pnl" aria-pressed="false">손익금 순</button></div>
+          <button class="btn-sm" id="moveBtn2" type="button">다른 기기에서 이어하기</button>
           <button class="btn-sm" id="leaveBtn" type="button">순위에서 나가기</button>
         </div>
       </div>
@@ -406,9 +452,10 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="modal-bg" id="modal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <h3 id="modalTitle">처음부터 다시 할까요?</h3>
-    <p id="modalBody">보유 포지션, 거래 기록, 지금까지 받은 월급이 모두 지워지고 10,000 USDC로 다시 시작해요. 다음 월급은 다음 달 1일에 들어와요.</p>
-    <div class="acts"><button id="modalNo">취소</button><button class="danger" id="modalYes">다시 시작</button></div>
+    <h3 id="modalTitle">확인</h3>
+    <p id="modalBody"></p>
+    <div class="inp" id="modalLinkBox" hidden><input id="modalLink" readonly aria-label="이어하기 링크"></div>
+    <div class="acts"><button id="modalNo">취소</button><button class="danger" id="modalYes">확인</button></div>
   </div>
 </div>
 
@@ -479,9 +526,12 @@ const fDate = t => new Date(t).toLocaleDateString('ko-KR', { year: 'numeric', mo
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-function toast(html, ms = 4200) {
+// act = { label, fn }: 알림 안에 버튼 하나 (예: 되돌리기)
+function toast(html, ms = 4200, act) {
   const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html;
+  if (act) { const b = document.createElement('button'); b.className = 'toast-act'; b.textContent = act.label; b.onclick = () => { el.remove(); act.fn(); }; el.appendChild(b); }
   $('toasts').appendChild(el); setTimeout(() => el.remove(), ms);
+  return el;
 }
 
 // ───────────────────────── 종목 목록 ─────────────────────────
@@ -515,7 +565,7 @@ const monthIdx = t => { const d = new Date(t); return d.getFullYear() * 12 + d.g
 const monthStart = mi => new Date(Math.floor(mi / 12), mi % 12, 1).getTime();
 function freshState() {
   const now = Date.now();
-  return { v: 2, balance: START, deposited: START, paidThrough: monthIdx(now), positions: [], lastSeen: now, createdAt: now,
+  return { v: 2, rev: 0, balance: START, deposited: START, paidThrough: monthIdx(now), positions: [], orders: [], lastSeen: now, createdAt: now,
     history: [{ type: 'deposit', id: uid(), at: now, amount: START, first: true }] };
 }
 // v0.1 기록(주문마다 따로 격리)을 새 방식으로: 같은 종목·같은 방향은 격리 포지션 하나로 합쳐요.
@@ -544,14 +594,29 @@ function migrate(o) {
   }
   return s;
 }
+// v0.4부터 예약 주문(orders)과 바뀐 횟수(rev)가 생겼어요. 예전 기록에는 없어서 빈 값으로 채워요.
+const fix = s => { s.orders ||= []; s.rev ||= 0; return s; };
+function stored() { try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); return s && s.v === 2 ? fix(s) : null; } catch (e) { return null; } }
 function load() {
-  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.v === 2) return s; } catch (e) {}
+  const s = stored(); if (s) return s;
   try { const o = JSON.parse(localStorage.getItem(OLD_KEY)); if (o && typeof o.balance === 'number') return migrate(o); } catch (e) {}
   return freshState();
 }
-let S = load();
-function persist() { if (S.sim) return; try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
+let S = load(), started = false;
+// rev = 기록이 실제로 바뀐 횟수. 같은 브라우저의 다른 탭(창)이 더 새 기록을 저장해 뒀으면 덮어쓰지 않고 그걸 가져와요.
+function persist() {
+  if (S.sim) return;
+  const o = stored(); if (o && o.rev > (S.rev || 0)) return adopt(o);
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {}
+}
+function adopt(o) { S = fix(o); if (started) renderAll(); }
 function save() { persist(); scheduleReport(); }   // 바뀐 게 있으면 순위 서버에도 알려요
+// 거래·입금·청산처럼 기록이 실제로 바뀌었을 때
+function commit() {
+  // 정리하려던 포지션이 없어진 '정리' 예약은 함께 취소해요 (실제 거래소의 reduce-only 주문처럼)
+  for (const o of [...S.orders]) if (o.ro) { const p = posOf(o.coin); if (!p || p.dir === o.dir) { S.orders.splice(S.orders.indexOf(o), 1); note({ k: 'cancel', id: o.id, c: o.coin, why: 'ro' }); } }
+  S.rev = (S.rev || 0) + 1; save();
+}
 persist();
 let catching = true;   // 자리 비운 시간을 되짚는 동안에는 실시간 판정을 쉬어요 (같은 일을 두 번 처리하지 않게)
 
@@ -896,9 +961,9 @@ function goSim() {
 
 // ───────────────────────── 차트 ─────────────────────────
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let colors = {};
+const col = n => colors[n] ||= css(n);   // 줄 색 (화면 모드가 바뀌면 다시 읽어요)
 let chart, series, wfChart, wfSeries, wfBase;
-const priceLines = [];
-let liqLine = null;
 function chartColors() {
   return { layout: { background: { type: 'solid', color: css('--panel') }, textColor: css('--muted'), fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 11 },
     grid: { vertLines: { color: css('--line') }, horzLines: { color: css('--line') } },
@@ -907,29 +972,136 @@ function chartColors() {
 function makeChart() {
   if (!window.LightweightCharts) { $('chart').innerHTML = '<div class="empty">차트 도구를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.</div>'; return; }
   chart = LightweightCharts.createChart($('chart'), { ...chartColors(), autoSize: true, crosshair: { mode: 0 }, localization: { locale: 'ko-KR', priceFormatter: fPx } });
-  series = chart.addCandlestickSeries({ upColor: css('--up'), downColor: css('--down'), borderUpColor: css('--up'), borderDownColor: css('--down'), wickUpColor: css('--up'), wickDownColor: css('--down') });
+  series = chart.addCandlestickSeries({ upColor: css('--up'), downColor: css('--down'), borderUpColor: css('--up'), borderDownColor: css('--down'), wickUpColor: css('--up'), wickDownColor: css('--down'), autoscaleInfoProvider: autoscale });
+}
+// 세로 범위를 자동으로 맞출 때 지금 가격에서 8% 안쪽의 가격 줄(익절·손절·예약·청산)도 보이게 넓혀요. 끄는 동안에는 범위를 고정해요.
+let lastAuto = null;
+function autoscale(orig) {
+  if (drag && lastAuto) return lastAuto;
+  const res = orig(); if (!res?.priceRange) return res;
+  let { minValue: lo, maxValue: hi } = res.priceRange;
+  const ref = cur.lastBar?.close || (lo + hi) / 2;
+  for (const l of lines.values()) { const v = l.w.price; if (v > 0 && Math.abs(v / ref - 1) < 0.08) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+  return lastAuto = { ...res, priceRange: { minValue: lo, maxValue: hi } };
 }
 function restyleCharts() {
+  colors = {}; drawPriceLines();
   if (chart) { chart.applyOptions(chartColors()); series.applyOptions({ upColor: css('--up'), downColor: css('--down'), borderUpColor: css('--up'), borderDownColor: css('--down'), wickUpColor: css('--up'), wickDownColor: css('--down') }); }
   if (wfChart) { wfChart.applyOptions(chartColors()); }
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => setTimeout(restyleCharts, 50));
 const toBar = k => ({ time: Math.floor(k.t / 1000), open: k.o, high: k.h, low: k.l, close: k.c });
+// ───────────────────────── 차트 가격 줄 ─────────────────────────
+// 평균가·청산가·익절·손절·예약 주문, 그리고 주문 칸에 넣은 값(주문 전)을 가로줄로 그려요.
+// 끌 수 있는 줄(drag)은 잡고 위아래로 옮기면 값이 바뀌어요 (트레이딩뷰·해외 거래소의 차트 주문처럼).
+let lineStyle = 2;   // 예약·익절·손절 줄 모양: 2 = 점선, 0 = 실선
+try { if (localStorage.getItem('mock24.line') === '0') lineStyle = 0; } catch (e) {}
+const lines = new Map();   // key → { pl: 차트의 줄, w: 그린 값 }
+let drag = null;           // 끄는 중인 줄
+const roundPx = v => +(+v).toFixed(pxDec(v));
+function wantLines() {
+  const out = [], c = cur.coin, p = posOf(c), up = col('--up'), down = col('--down');
+  if (p) {
+    out.push({ key: 'entry', price: p.entry, color: p.dir > 0 ? up : down, style: 2, width: 1, title: (p.dir > 0 ? '롱 ' : '숏 ') + p.lev + '배 평균', drag: 'entry' });
+    const lq = liqOf(p);
+    if (lq > 0) out.push({ key: 'liq', price: lq, color: col('--warn'), style: 1, width: 1, title: p.mode === 'cross' ? '청산(교차·약)' : '청산', drag: p.mode === 'isolated' ? 'liq' : null });
+    if (p.tp) out.push({ key: 'tp', price: p.tp, color: col('--tp'), style: lineStyle, width: 2, title: '익절', drag: 'tp' });
+    if (p.sl) out.push({ key: 'sl', price: p.sl, color: col('--sl'), style: lineStyle, width: 2, title: '손절', drag: 'sl' });
+  }
+  for (const o of S.orders) if (o.coin === c) out.push({ key: 'o' + o.id, id: o.id, price: o.px, color: o.dir > 0 ? up : down, style: lineStyle, width: 2, title: `예약 ${o.dir > 0 ? '롱' : '숏'}${o.ro ? ' (정리)' : ''}`, drag: 'order' });
+  // 주문 칸에 넣은 값 (아직 주문 전)
+  const dp = orderType === 'limit' ? +$('limitPx').value : 0, dtp = +$('tp').value, dsl = +$('sl').value;
+  if (dp > 0) out.push({ key: 'dpx', price: dp, color: col('--lamp'), style: lineStyle, width: 1, title: '지정가 (주문 전)', drag: 'dpx' });
+  if (dtp > 0) out.push({ key: 'dtp', price: dtp, color: col('--tp'), style: lineStyle, width: 1, title: '익절 (주문 전)', drag: 'dtp' });
+  if (dsl > 0) out.push({ key: 'dsl', price: dsl, color: col('--sl'), style: lineStyle, width: 1, title: '손절 (주문 전)', drag: 'dsl' });
+  return out;
+}
+// 바뀐 줄만 고쳐요 (가격이 바뀔 때마다 불러도 가벼워요)
 function drawPriceLines() {
   if (!series) return;
-  while (priceLines.length) series.removePriceLine(priceLines.pop());
-  liqLine = null;
-  const p = posOf(cur.coin); if (!p) return;
-  const col = p.dir > 0 ? css('--up') : css('--down');
-  priceLines.push(series.createPriceLine({ price: p.entry, color: col, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: (p.dir > 0 ? '롱 ' : '숏 ') + p.lev + '배 평균' }));
-  const lq = liqOf(p);
-  if (lq > 0) { liqLine = series.createPriceLine({ price: lq, color: css('--warn'), lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: p.mode === 'cross' ? '청산(교차·약)' : '청산' }); priceLines.push(liqLine); }
+  const want = wantLines(), keys = new Set(want.map(w => w.key));
+  for (const [k, l] of lines) if (!keys.has(k) && k !== 'tmp') { series.removePriceLine(l.pl); lines.delete(k); }
+  for (const w of want) {
+    if (drag?.key === w.key) continue;   // 끄는 중인 줄은 손대지 않아요
+    const l = lines.get(w.key), opt = { price: w.price, color: w.color, lineWidth: w.width, lineStyle: w.style, axisLabelVisible: true, title: w.title };
+    if (!l) lines.set(w.key, { pl: series.createPriceLine(opt), w });
+    else { if (['price', 'color', 'width', 'style', 'title'].some(f => l.w[f] !== w[f])) l.pl.applyOptions(opt); l.w = w; }
+  }
+  const kinds = new Set(want.map(w => w.drag).filter(Boolean)), hint = $('chartHint');
+  hint.hidden = !kinds.size;
+  if (kinds.size) hint.textContent = '줄을 잡고 위아래로 끌면 바뀌어요: ' + [kinds.has('tp') || kinds.has('sl') || kinds.has('dtp') || kinds.has('dsl') ? '익절·손절가' : '', kinds.has('order') || kinds.has('dpx') ? '예약 가격' : '', kinds.has('liq') ? '격리 청산가(증거금 넣기·빼기)' : ''].filter(Boolean).join(', ') + (kinds.has('entry') ? '. 평균가 줄을 끌어내면 익절·손절을 새로 걸어요.' : '.');
 }
-// 교차 청산가는 다른 종목 가격과 지갑에 따라 계속 움직여요
-function updateLiqLine() {
-  const p = posOf(cur.coin); if (!p || p.mode !== 'cross') return;
-  const lq = liqOf(p);
-  if (liqLine && lq > 0) liqLine.applyOptions({ price: lq }); else if (!liqLine !== !(lq > 0)) drawPriceLines();
+
+// 끌기: 마우스와 손가락(터치) 모두. 줄 가까이에서 누르면 차트 대신 줄이 움직여요.
+const paneH = () => $('chart').clientHeight - chart.timeScale().height();
+function lineNear(y, tol) {
+  let best = null;
+  for (const [key, l] of lines) {
+    if (!l.w.drag) continue;
+    const ly = series.priceToCoordinate(l.w.price); if (ly == null || ly < 0 || ly > paneH()) continue;
+    const d = Math.abs(ly - y); if (d <= tol && (!best || d < best.d)) best = { d, key, l };
+  }
+  return best;
+}
+const pointY = e => { const t = e.touches?.[0] || e.changedTouches?.[0] || e; return t.clientY - $('chart').getBoundingClientRect().top; };
+function dragStart(e) {
+  if (!series || drag) return;
+  const touch = e.type === 'touchstart';
+  if (touch ? e.touches.length !== 1 : e.button !== 0) return;
+  const y = pointY(e), hit = lineNear(y, touch ? 14 : 6); if (!hit) return;
+  e.preventDefault(); e.stopPropagation();
+  drag = { key: hit.key, kind: hit.l.w.drag, id: hit.l.w.id, y0: y, price: hit.l.w.price, moved: false };
+  if (drag.kind === 'entry') {   // 평균가 줄에서 새 익절·손절 줄을 끌어내요
+    lines.set('tmp', { pl: series.createPriceLine({ price: drag.price, color: col('--tp'), lineWidth: 2, lineStyle, axisLabelVisible: true, title: '' }), w: { key: 'tmp', price: drag.price } });
+    drag.key = 'tmp';
+  }
+  chart.applyOptions({ handleScroll: false, handleScale: false });
+  $('chart').classList.add('dragging'); $('chart').classList.remove('grab');
+}
+function dragMove(e) {
+  if (!drag) {
+    if (e.type === 'mousemove' && series && !e.buttons) $('chart').classList.toggle('grab', !!(e.target.closest?.('#chart') && lineNear(pointY(e), 6)));
+    return;
+  }
+  e.preventDefault();
+  const y = pointY(e); if (!drag.moved && Math.abs(y - drag.y0) < 4) return;
+  drag.moved = true;
+  const l = lines.get(drag.key); if (!l) return dragEnd();
+  const raw = series.coordinateToPrice(clamp(y, 0, paneH())); if (raw == null || !(raw > 0)) return;
+  const px = drag.price = roundPx(raw), t = dragLabel(drag, px);
+  l.pl.applyOptions({ price: px, title: t.title, ...(t.color ? { color: t.color } : {}) });
+  const inp = { dpx: 'limitPx', dtp: 'tp', dsl: 'sl' }[drag.kind];
+  if (inp) { $(inp).value = px; renderOrderSummary(); }
+}
+function dragEnd() {
+  if (!drag) return;
+  const d = drag; drag = null;
+  $('chart').classList.remove('dragging');
+  chart.applyOptions({ handleScroll: true, handleScale: true });
+  const tmp = lines.get('tmp'); if (tmp) { series.removePriceLine(tmp.pl); lines.delete('tmp'); }
+  if (d.moved) dropLine(d);
+  drawPriceLines();
+}
+// 끄는 동안 줄에 보여 주는 값: 그 가격에 닿으면 얼마를 벌거나 잃는지, 청산가가 어떻게 되는지
+function dragLabel(d, px) {
+  const c = cur.coin, p = posOf(c), ref = markOf(c), pct = ref ? ' ' + fPct(px / ref - 1) : '';
+  const pnl = p ? ' · ' + fUsd(upnlAt(p, px) - p.size * px * FEE - p.fees, true) : '';   // 그 가격에 전부 닫으면 (수수료 뺀) 손익
+  if (d.kind === 'tp' || d.kind === 'sl') return { title: (d.kind === 'tp' ? '익절' : '손절') + pct + pnl };
+  if (d.kind === 'entry') { const tp = (px > ref) === (p.dir > 0); return { title: (tp ? '익절' : '손절') + pct + pnl, color: col(tp ? '--tp' : '--sl') }; }
+  if (d.kind === 'liq') { const m = isoMarginFor(p, px); return { title: `청산 · 증거금 ${fUsd(m.margin)} (${fUsd(m.margin - p.margin, true)})` }; }
+  if (d.kind === 'order') {
+    const o = S.orders.find(x => x.id === d.id); if (!o) return { title: '' };
+    const v = plan(c, o.dir, o.margin, o.lev, o.mode, px);
+    return { title: `예약 ${o.dir > 0 ? '롱' : '숏'}${pct}` + (v.hp ? ' · 청산 ' + liqTxt(v.hp) : '') };
+  }
+  return { title: { dpx: '지정가', dtp: '익절', dsl: '손절' }[d.kind] + ' (주문 전)' + pct };
+}
+function dropLine(d) {
+  if (d.kind === 'dpx' || d.kind === 'dtp' || d.kind === 'dsl') return;   // 주문 칸 값은 끄는 동안 이미 바뀌었어요
+  if (d.kind === 'order') return moveOrder(d.id, d.price);
+  const p = posOf(cur.coin); if (!p) return;
+  if (d.kind === 'liq') return setIsoMargin(p, d.price);
+  setTpSl(p, d.kind === 'entry' ? ((d.price > markOf(p.coin)) === (p.dir > 0) ? 'tp' : 'sl') : d.kind, d.price);
 }
 
 // ───────────────────────── 현재 종목 ─────────────────────────
@@ -940,6 +1112,7 @@ let curSubs = [];
 async function selectMarket(coin, force) {
   if (!BY_COIN[coin]) coin = 'BTC';
   if (coin === cur.coin && !force && cur.ready) return;
+  if (coin !== cur.coin) { $('tp').value = ''; $('sl').value = ''; $('limitPx').value = mids[coin] ? roundPx(mids[coin]) : ''; }   // 주문 칸 가격은 종목마다 달라요
   curSubs.forEach(s => feed.unsub(s)); curSubs = [];
   cur.coin = coin; cur.book = null; cur.lastBar = null; cur.last = mids[coin] ?? NaN; cur.ready = true; tradeBuf.length = 0;
   try { localStorage.setItem('mock24.coin', coin); } catch (e) {}
@@ -1023,7 +1196,7 @@ function renderBook() {
   const ca = cum(asks), cb = cum(bids);
   const max = Math.max(ca.at(-1)?.[2] || 0, cb.at(-1)?.[2] || 0) || 1;
   const sd = info[cur.coin].szDec;
-  const row = (cl, [p, z, s]) => `<div class="row ${cl}"><span>${fPx(p)}</span><span>${z.toFixed(sd)}</span><span>${s.toFixed(sd)}</span><i class="bar" style="width:${(s / max * 100).toFixed(1)}%"></i></div>`;
+  const row = (cl, [p, z, s]) => `<div class="row ${cl}" data-px="${p}" title="누르면 지정가로"><span>${fPx(p)}</span><span>${z.toFixed(sd)}</span><span>${s.toFixed(sd)}</span><i class="bar" style="width:${(s / max * 100).toFixed(1)}%"></i></div>`;
   $('asks').innerHTML = ca.slice().reverse().map(r => row('ask', r)).join('');
   $('bids').innerHTML = cb.map(r => row('bid', r)).join('');
   const ba = asks[0]?.[0], bb = bids[0]?.[0];
@@ -1091,11 +1264,23 @@ function liqOf(p) {
   return x > 0 ? x : 0;   // 0 = 이 종목만으로는 청산되지 않음
 }
 const liqTxt = p => { const lq = liqOf(p); return lq > 0 ? (p.mode === 'cross' ? '약 ' : '') + fPx(lq) : '없음'; };
-function account() {
-  const cr = crossState(markOf);
+// 사용 가능 = 교차 자산 − 교차 초기증거금 − 예약 주문에 묶인 돈
+function account(pxOf = markOf) {
+  const cr = crossState(pxOf);
   let isoM = 0, isoU = 0;
-  for (const p of S.positions) if (p.mode === 'isolated') { isoM += p.margin; const px = markOf(p.coin); if (px) isoU += upnlAt(p, px); }
-  return { cr, isoM, upnl: cr.U + isoU, equity: cr.E + isoM + isoU, avail: Math.max(0, cr.E - cr.IM) };
+  for (const p of S.positions) if (p.mode === 'isolated') { isoM += p.margin; const px = pxOf(p.coin); if (px) isoU += upnlAt(p, px); }
+  const res = S.orders.reduce((a, o) => a + (o.res || 0), 0);
+  return { cr, isoM, res, upnl: cr.U + isoU, equity: cr.E + isoM + isoU, avail: Math.max(0, cr.E - cr.IM - res) };
+}
+// 격리 청산가를 L로 옮기려면 필요한 증거금. 넣기는 사용 가능한 돈까지, 빼기는 남는 증거금(평가손익 포함)이
+// 초기증거금과 포지션 규모 10% 중 큰 값 이상이 되게 (Hyperliquid 규칙 "transfer_margin_required = max(initial_margin_required, 0.1 * total_position_value)")
+function isoMarginFor(p, L) {
+  const r = mmr(p.coin), ref = markOf(p.coin) || p.entry, ntl = p.size * ref;
+  const want = p.dir > 0 ? p.size * (p.entry - L * (1 - r)) : p.size * (L * (1 + r) - p.entry);
+  const hi = p.margin + account().avail, lo = Math.min(p.margin, Math.max(0, Math.max(ntl / p.lev, ntl * 0.1) - upnlAt(p, ref)));
+  if (want > hi) return { margin: hi, why: `사용 가능한 돈이 부족해서 ${fUsd(hi - p.margin)} USDC까지만 넣었어요.` };
+  if (want < lo) return { margin: lo, why: lo >= p.margin ? '지금은 증거금을 더 뺄 수 없어요 (남는 증거금이 초기증거금·포지션 규모 10%보다 작아져요).' : `더 빼면 위험해서 ${fUsd(p.margin - lo)} USDC까지만 뺐어요.` };
+  return { margin: want, why: '' };
 }
 
 // ───────────────────────── 주문 계산 ─────────────────────────
@@ -1112,22 +1297,25 @@ function fillPrice(dir, notional) {
 }
 let uiMode = 'cross';
 try { if (localStorage.getItem('mock24.mode') === 'isolated') uiMode = 'isolated'; } catch (e) {}
-const orderMode = () => posOf(cur.coin)?.mode || uiMode;
+let orderType = 'market';   // 'market' = 지금 바로, 'limit' = 지정가 예약
+// 포지션이 있거나 예약 주문이 걸려 있으면 그 방식·레버리지를 따라요 (실제 거래소처럼 종목마다 하나)
+const lockOf = coin => posOf(coin) || S.orders.find(o => o.coin === coin);
+const orderMode = () => lockOf(cur.coin)?.mode || uiMode;
 function syncLeverage() {
-  const mx = info[cur.coin].maxLev, p = posOf(cur.coin);
+  const mx = info[cur.coin].maxLev, p = lockOf(cur.coin);
   $('levRange').max = mx; $('levNum').max = mx; $('levMaxLb').textContent = '최대 ' + mx + '배';
   const v = p ? p.lev : clamp(+$('levNum').value || 1, 1, mx); $('levNum').value = v; $('levRange').value = v;
   renderOrderSummary();
 }
 function orderInputs() {
-  const p = posOf(cur.coin), lev = p ? p.lev : clamp(Math.round(+$('levNum').value || 1), 1, info[cur.coin].maxLev);
+  const p = lockOf(cur.coin), lev = p ? p.lev : clamp(Math.round(+$('levNum').value || 1), 1, info[cur.coin].maxLev);
   const margin = Math.max(0, +$('margin').value || 0);
   return { lev, margin, notional: margin * lev, mode: orderMode() };
 }
-// 주문하면 이 종목 포지션이 어떻게 되는지 미리 계산 (실제로 바꾸지는 않아요)
-function preview(dir) {
-  const { lev, margin, notional, mode } = orderInputs(), c = cur.coin, p = posOf(c);
-  const px = fillPrice(dir, notional), q = notional / px, dust = sz => sz * px < 1;   // 1 USDC 미만 자투리는 남기지 않아요
+// 주문이 px에 체결되면 이 종목 포지션이 어떻게 되는지 미리 계산 (실제로 바꾸지는 않아요)
+function plan(c, dir, margin, lev, mode, px) {
+  const p = posOf(c); if (p) { lev = p.lev; mode = p.mode; }
+  const notional = margin * lev, q = notional / px, dust = sz => sz * px < 1;   // 1 USDC 미만 자투리는 남기지 않아요
   if (!p) return { px, act: '진입', close: 0, open: q, hp: { coin: c, dir, size: q, entry: px, lev, mode, margin: mode === 'isolated' ? margin : 0 } };
   if (p.dir === dir) return { px, act: '더하기', close: 0, open: q, hp: { ...p, size: p.size + q, entry: (p.entry * p.size + px * q) / (p.size + q), margin: p.mode === 'isolated' ? p.margin + margin : 0 } };
   if (q < p.size && !dust(p.size - q)) return { px, act: '줄이기', close: q, open: 0, hp: { ...p, size: p.size - q, margin: p.margin * (1 - q / p.size) } };
@@ -1135,27 +1323,38 @@ function preview(dir) {
   if (dust(rest)) return { px, act: '종료', close: p.size, open: 0, hp: null };
   return { px, act: '뒤집기', close: p.size, open: rest, hp: { coin: c, dir, size: rest, entry: px, lev: p.lev, mode: p.mode, margin: p.mode === 'isolated' ? rest * px / p.lev : 0 } };
 }
+const limitPx = () => orderType === 'limit' && +$('limitPx').value > 0 ? +$('limitPx').value : 0;
+function preview(dir) {
+  const { lev, margin, notional, mode } = orderInputs();
+  return plan(cur.coin, dir, margin, lev, mode, limitPx() || fillPrice(dir, notional));
+}
 function renderMode() {
-  const p = posOf(cur.coin), m = orderMode();
+  const p = lockOf(cur.coin), m = orderMode();
   document.querySelectorAll('#modeSeg button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.mode === m); b.disabled = !!p; });
   $('levRange').disabled = $('levNum').disabled = !!p;
   $('modeHelp').textContent = m === 'cross'
     ? '교차: 지갑 현금 전체가 모든 교차 포지션의 담보예요. 손익이 서로 엮여서 한 포지션의 손실을 현금과 다른 포지션 이익이 버텨 주지만, 청산되면 교차 포지션이 한꺼번에 정리돼요.'
     : '격리: 이 포지션에 넣은 증거금만 걸어요. 청산돼도 그 돈만 잃고, 지갑과 다른 포지션은 그대로예요.';
   $('lockNote').hidden = !p;
-  if (p) $('lockNote').innerHTML = `이미 <b>${sideName(p)} ${modeName(p.mode)} ${p.lev}배</b>가 있어요. 같은 방향 주문은 더해지고, 반대 방향 주문은 줄이거나 뒤집어요. 방식과 레버리지는 이 포지션을 닫은 뒤 바꿀 수 있어요.`;
+  if (p) $('lockNote').innerHTML = posOf(cur.coin)
+    ? `이미 <b>${sideName(p)} ${modeName(p.mode)} ${p.lev}배</b>가 있어요. 같은 방향 주문은 더해지고, 반대 방향 주문은 줄이거나 뒤집어요. 방식과 레버리지는 이 포지션을 닫은 뒤 바꿀 수 있어요.`
+    : `이 종목에 <b>예약 주문(${modeName(p.mode)} ${p.lev}배)</b>이 걸려 있어서 방식과 레버리지가 같게 잠겨 있어요. 예약을 취소하면 바꿀 수 있어요.`;
 }
 function renderOrderSummary() {
-  renderMode();
-  const { margin, notional } = orderInputs(), c = cur.coin, ref = markOf(c);
+  renderMode(); drawPriceLines();
+  const { margin, notional } = orderInputs(), c = cur.coin, ref = markOf(c), lim = orderType === 'limit', lp = limitPx();
   $('availLb').textContent = '사용 가능 ' + fUsd(account().avail);
+  $('sumLiqLLb').textContent = lim ? '롱 예약 체결 뒤 청산가 (예상)' : '롱 누른 뒤 청산가 (예상)';
+  $('sumLiqSLb').textContent = lim ? '숏 예약 체결 뒤 청산가 (예상)' : '숏 누른 뒤 청산가 (예상)';
   if (!ref || !margin) { ['sumNotional', 'sumSize', 'sumLiqL', 'sumLiqS', 'sumFee', 'longPx', 'shortPx'].forEach(k => $(k).textContent = '–'); return; }
   const L = preview(1), Sh = preview(-1), after = v => v.hp ? liqTxt(v.hp) : '포지션 닫힘';
   $('sumNotional').textContent = fUsd(notional) + ' USDC';
-  $('sumSize').textContent = (notional / ref).toFixed(info[c].szDec) + ' ' + tick(c);
+  $('sumSize').textContent = (notional / (lp || ref)).toFixed(info[c].szDec) + ' ' + tick(c);
   $('sumLiqL').textContent = after(L); $('sumLiqS').textContent = after(Sh);
   $('sumFee').textContent = fUsd(notional * FEE) + ' USDC';
-  $('longPx').textContent = L.act + ' · 약 ' + fPx(L.px); $('shortPx').textContent = Sh.act + ' · 약 ' + fPx(Sh.px);
+  if (!lim) { $('longPx').textContent = L.act + ' · 약 ' + fPx(L.px); $('shortPx').textContent = Sh.act + ' · 약 ' + fPx(Sh.px); }
+  else if (!lp) $('longPx').textContent = $('shortPx').textContent = '지정가를 넣어 주세요';
+  else { $('longPx').textContent = (lp < ref ? '예약 · ' : '지금보다 낮게 · ') + fPx(lp); $('shortPx').textContent = (lp > ref ? '예약 · ' : '지금보다 높게 · ') + fPx(lp); }
 }
 
 // ───────────────────────── 체결·청산 ─────────────────────────
@@ -1195,32 +1394,31 @@ function liquidateCross(pxOf, at) {
   return list.map(sideName).join(', ');
 }
 
-function placeOrder(dir) {
-  const c = cur.coin;
-  if (!markOf(c)) return toast('아직 가격을 받지 못했어요. 잠시 뒤에 다시 눌러 주세요.');
-  if (orderInputs().margin < 1) return toast('증거금을 1 USDC 이상 넣어 주세요.');
-  const v = preview(dir), p = posOf(c);
-  const tp = +$('tp').value || null, sl = +$('sl').value || null, nd = v.hp?.dir;
-  if (v.hp && tp && (nd > 0 ? tp <= v.px : tp >= v.px)) return toast(nd > 0 ? '롱의 익절가는 지금 가격보다 높아야 해요.' : '숏의 익절가는 지금 가격보다 낮아야 해요.');
-  if (v.hp && sl && (nd > 0 ? sl >= v.px : sl <= v.px)) return toast(nd > 0 ? '롱의 손절가는 지금 가격보다 낮아야 해요.' : '숏의 손절가는 지금 가격보다 높아야 해요.');
-  const openNtl = v.open * v.px, need = v.open ? openNtl / v.hp.lev + openNtl * FEE : 0;
-  if (v.act !== '뒤집기' && need > account().avail + 1e-9) return toast('사용 가능한 돈이 부족해요. 증거금을 줄이거나 포지션을 정리해 주세요.');
+// 익절·손절가가 맞는 쪽에 있는지 (d = 포지션 방향, px = 기준 가격)
+function badTpSl(d, px, tp, sl, what = '지금 가격') {
+  if (!d) return '';
+  if (tp && (d > 0 ? tp <= px : tp >= px)) return d > 0 ? `롱의 익절가는 ${what}보다 높아야 해요.` : `숏의 익절가는 ${what}보다 낮아야 해요.`;
+  if (sl && (d > 0 ? sl >= px : sl <= px)) return d > 0 ? `롱의 손절가는 ${what}보다 낮아야 해요.` : `숏의 손절가는 ${what}보다 높아야 해요.`;
+  return '';
+}
+// 주문 체결 (시장가·예약 공통). v = plan() 결과. 돌려주는 값: 알림 문장 목록
+function execute(c, dir, v, { tp = null, sl = null, at = Date.now(), pxOf = markOf, lim = false } = {}) {
   const msg = [];
   if (v.close) {
-    const name = sideName(p), r = reducePosition(p, v.close, v.px, '반대 주문');
+    const p = posOf(c), name = sideName(p), r = reducePosition(p, v.close, v.px, lim ? '예약 체결' : '반대 주문', at);
     msg.push(`${name} ${v.act === '줄이기' ? '일부 정리' : '종료'} · 실현손익 <b>${fUsd(r, true)}</b> USDC`);
   }
   if (v.open) {
-    const im = openNtl / v.hp.lev, fee = openNtl * FEE;
-    if (im + fee > account().avail + 1e-9) msg.push('뒤집는 주문은 사용 가능한 돈이 부족해서 넣지 않았어요.');
+    const ntl = v.open * v.px, im = ntl / v.hp.lev, fee = ntl * FEE, p = posOf(c);
+    if (im + fee > account(pxOf).avail + 1e-9) msg.push(v.close ? '뒤집는 주문은 사용 가능한 돈이 부족해서 넣지 않았어요.' : '사용 가능한 돈이 부족해서 주문하지 못했어요.');
     else {
-      if (v.act === '더하기') { p.entry = v.hp.entry; p.size = v.hp.size; p.fees += fee; if (p.mode === 'isolated') { p.margin += im; S.balance -= im; } }
+      if (p && p.dir === dir) { p.entry = (p.entry * p.size + v.px * v.open) / (p.size + v.open); p.size += v.open; p.fees += fee; if (p.mode === 'isolated') { p.margin += im; S.balance -= im; } }
       else {
-        S.positions.push({ id: uid(), coin: c, dir, size: v.open, entry: v.px, lev: v.hp.lev, mode: v.hp.mode, margin: v.hp.mode === 'isolated' ? im : 0, tp: null, sl: null, fees: fee, openedAt: Date.now() });
+        S.positions.push({ id: uid(), coin: c, dir, size: v.open, entry: v.px, lev: v.hp.lev, mode: v.hp.mode, margin: v.hp.mode === 'isolated' ? im : 0, tp: null, sl: null, fees: fee, openedAt: at });
         if (v.hp.mode === 'isolated') S.balance -= im;
       }
       S.balance -= fee;
-      note({ k: v.act === '더하기' ? 'add' : 'open', c, d: dir, sz: sig(v.open), px: sig(v.px), m: v.hp.mode, lev: v.hp.lev });
+      note({ k: v.act === '더하기' ? 'add' : 'open', c, d: dir, sz: sig(v.open), px: sig(v.px), m: v.hp.mode, lev: v.hp.lev, ...(lim ? { lim: 1 } : {}), at });
       const np = posOf(c);
       msg.push(v.act === '더하기'
         ? `${sideName(np)}에 더했어요 · 새 평균가 <b>${fPx(np.entry)}</b> · 청산가 <b>${liqTxt(np)}</b>`
@@ -1229,22 +1427,115 @@ function placeOrder(dir) {
   }
   const np = posOf(c);
   if (np) { if (tp) np.tp = tp; if (sl) np.sl = sl; if (np.sl && liqOf(np) > 0 && (np.dir > 0 ? np.sl <= liqOf(np) : np.sl >= liqOf(np))) msg.push('손절가가 청산가보다 멀어서, 손절 전에 청산될 수 있어요.'); }
-  save(); $('tp').value = ''; $('sl').value = '';
-  toast(msg.join('<br>'), 6000);
-  renderAll(); drawPriceLines();
+  return msg;
 }
+function placeOrder(dir) {
+  if (orderType === 'limit') return placeLimit(dir);
+  const c = cur.coin;
+  if (!markOf(c)) return toast('아직 가격을 받지 못했어요. 잠시 뒤에 다시 눌러 주세요.');
+  if (orderInputs().margin < 1) return toast('증거금을 1 USDC 이상 넣어 주세요.');
+  const v = preview(dir), tp = +$('tp').value || null, sl = +$('sl').value || null;
+  const bad = badTpSl(v.hp?.dir, v.px, tp, sl); if (bad) return toast(bad);
+  const openNtl = v.open * v.px, need = v.open ? openNtl / v.hp.lev + openNtl * FEE : 0;
+  if (v.act !== '뒤집기' && need > account().avail + 1e-9) return toast('사용 가능한 돈이 부족해요. 증거금을 줄이거나 포지션·예약 주문을 정리해 주세요.');
+  const msg = execute(c, dir, v, { tp, sl });
+  commit(); $('tp').value = ''; $('sl').value = '';
+  toast(msg.join('<br>'), 6000);
+  renderAll();
+}
+
+// ───────────────────────── 지정가 (예약) ─────────────────────────
+// 롱은 지금보다 낮은 가격, 숏은 지금보다 높은 가격에 걸어 두면, 시세가 닿을 때 그 가격으로 체결돼요.
+// 기다리는 동안 증거금 + 수수료만큼 묶어 둬요(res). 포지션을 줄이기만 하는 예약(ro, 정리)은 묶지 않아요.
+function placeLimit(dir) {
+  const c = cur.coin, ref = markOf(c), L = limitPx() ? roundPx(limitPx()) : 0;
+  if (!ref) return toast('아직 가격을 받지 못했어요. 잠시 뒤에 다시 눌러 주세요.');
+  if (!L) return toast('지정가를 넣어 주세요.');
+  if (dir > 0 ? L >= ref : L <= ref) return toast(dir > 0 ? `롱(사기) 예약가는 지금 가격(${fPx(ref)})보다 낮아야 해요. 지금 바로 사려면 시장가로 주문하세요.` : `숏(팔기) 예약가는 지금 가격(${fPx(ref)})보다 높아야 해요. 지금 바로 팔려면 시장가로 주문하세요.`);
+  const { margin, lev, mode } = orderInputs();
+  if (margin < 1) return toast('증거금을 1 USDC 이상 넣어 주세요.');
+  if (S.orders.length >= 50) return toast('예약 주문은 50개까지 걸 수 있어요.');
+  const v = plan(c, dir, margin, lev, mode, L), ro = v.act === '줄이기' || v.act === '종료';
+  const tp = ro ? null : +$('tp').value || null, sl = ro ? null : +$('sl').value || null;
+  const bad = badTpSl(v.hp?.dir, L, tp, sl, '예약 가격'); if (bad) return toast(bad);
+  const res = ro ? 0 : r2(margin * (1 + lev * FEE));
+  if (res > account().avail + 1e-9) return toast('사용 가능한 돈이 부족해요. 증거금을 줄이거나 다른 예약을 취소해 주세요.');
+  const o = { id: uid(), coin: c, dir, px: L, margin, lev, mode, tp, sl, at: Date.now(), res, ...(ro ? { ro: true } : {}) };
+  S.orders.push(o);
+  note({ k: 'order', id: o.id, c, d: dir, px: sig(L), mg: r2(margin), lev, m: mode, ...(ro ? { ro: 1 } : {}) });
+  commit(); $('tp').value = ''; $('sl').value = '';
+  toast(`<b>예약</b> · ${nameOf(c)} ${dir > 0 ? '롱' : '숏'} ${lev}배 · <b>${fPx(L)}</b>에 닿으면 체결돼요<br>` + (ro ? `체결되면 지금 포지션을 ${v.act === '종료' ? '닫아요' : '일부 정리해요'}.` : `${fUsd(res)} USDC가 예약에 묶여요.`), 6000);
+  renderAll();
+}
+function cancelOrder(id) {
+  const o = S.orders.find(x => x.id === id); if (!o) return;
+  S.orders.splice(S.orders.indexOf(o), 1); note({ k: 'cancel', id, c: o.coin });
+  commit(); renderAll();
+  toast(`예약 취소 · ${nameOf(o.coin)} ${o.dir > 0 ? '롱' : '숏'} ${fPx(o.px)}`);
+}
+// 예약 체결. pxOf = 그때 시세 (되짚을 때는 그 시간대 가격). 돌려주는 값: 알림 문장
+function fillOrder(o, at, pxOf = markOf) {
+  S.orders.splice(S.orders.indexOf(o), 1);
+  const head = `${nameOf(o.coin)} ${o.dir > 0 ? '롱' : '숏'} 예약 ${fPx(o.px)}`, p = posOf(o.coin);
+  let v = plan(o.coin, o.dir, o.margin, o.lev, o.mode, o.px);
+  if (o.ro) {
+    if (!p || p.dir === o.dir) { note({ k: 'cancel', id: o.id, c: o.coin, why: 'ro' }); return ''; }
+    if (v.act === '뒤집기') v = { ...v, act: '종료', open: 0, hp: null };   // 정리 예약은 뒤집지 않고 닫기만
+  }
+  if (v.act !== '뒤집기' && v.open) {
+    const ntl = v.open * v.px;
+    if (ntl / v.hp.lev + ntl * FEE > account(pxOf).avail + 1e-9) { note({ k: 'cancel', id: o.id, c: o.coin, why: 'funds' }); return `${head} · 사용 가능한 돈이 부족해서 취소됐어요`; }
+  }
+  return `<b>${head} 체결</b> · ` + execute(o.coin, o.dir, v, { tp: o.tp, sl: o.sl, at, pxOf, lim: true }).join(' · ');
+}
+function moveOrder(id, px) {
+  const o = S.orders.find(x => x.id === id); if (!o) return;
+  const ref = markOf(o.coin), old = o.px;
+  if (o.dir > 0 ? px >= ref : px <= ref) return toast(o.dir > 0 ? `롱 예약가는 지금 가격(${fPx(ref)})보다 낮아야 해요.` : `숏 예약가는 지금 가격(${fPx(ref)})보다 높아야 해요.`);
+  const bad = badTpSl(o.dir, px, o.tp, o.sl, '예약 가격'); if (bad) return toast(bad);
+  o.px = px; note({ k: 'move', id, c: o.coin, px: sig(px) });
+  commit(); renderAll();
+  toast(`${nameOf(o.coin)} ${o.dir > 0 ? '롱' : '숏'} 예약가 <b>${fPx(old)}</b> → <b>${fPx(px)}</b>`, 6000,
+    { label: '되돌리기', fn: () => { const q = S.orders.find(x => x.id === id); if (q) { q.px = old; commit(); renderAll(); } } });
+}
+// 보유 포지션의 익절·손절가 바꾸기 (px = null 이면 지우기)
+function setTpSl(p, which, px) {
+  const name = which === 'tp' ? '익절' : '손절', old = p[which] || null;
+  if (px != null) { const bad = badTpSl(p.dir, markOf(p.coin), which === 'tp' ? px : null, which === 'sl' ? px : null); if (bad) return toast(bad); }
+  p[which] = px; note({ k: 'tpsl', c: p.coin, tp: p.tp || null, sl: p.sl || null });
+  commit(); renderAll();
+  const undo = { label: '되돌리기', fn: () => { const q = S.positions.find(x => x.id === p.id); if (q) { q[which] = old; commit(); renderAll(); } } };
+  if (px == null) return toast(`${sideName(p)} ${name}가를 지웠어요.`, 5000, undo);
+  let msg = `${sideName(p)} ${name}가 <b>${fPx(px)}</b> · 닿으면 약 <b>${fUsd(upnlAt(p, px) - p.size * px * FEE - p.fees, true)}</b> USDC`;
+  if (which === 'sl' && liqOf(p) > 0 && (p.dir > 0 ? px <= liqOf(p) : px >= liqOf(p))) msg += '<br>손절가가 청산가보다 멀어서, 손절 전에 청산될 수 있어요.';
+  toast(msg, 6000, undo);
+}
+// 격리 포지션 청산가 옮기기 = 증거금 넣기·빼기 (교차는 지갑 전체가 담보라 따로 못 옮겨요)
+function setIsoMargin(p, L) {
+  const m = isoMarginFor(p, L), d = r2(m.margin - p.margin);
+  if (Math.abs(d) < 0.01) return toast(m.why || '증거금이 그대로예요.');
+  changeMargin(p, d, m.why, true);
+}
+function changeMargin(p, d, why, undoable) {
+  p.margin += d; S.balance -= d;
+  note({ k: 'margin', c: p.coin, amt: r2(d) });
+  commit(); renderAll();
+  toast(`${sideName(p)} 격리 증거금 ${d > 0 ? '+' : '−'}${fUsd(Math.abs(d))} → <b>${fUsd(p.margin)}</b> USDC · 청산가 <b>${liqTxt(p)}</b>` + (why ? '<br>' + why : ''), 7000,
+    undoable && { label: '되돌리기', fn: () => { const q = S.positions.find(x => x.id === p.id); if (!q) return; if (-d > account().avail) return toast('사용 가능한 돈이 부족해서 되돌리지 못했어요.'); changeMargin(q, -d, '', false); } });
+}
+
 function manualClose(id, f) {
   const p = S.positions.find(x => x.id === id); if (!p) return;
   const q = f >= 1 ? p.size : p.size * f;
   let px = markOf(p.coin); if (!px) return toast('아직 가격을 받지 못했어요.');
   if (p.coin === cur.coin && cur.book) px = fillPrice(-p.dir, q * px);
   const name = sideName(p), r = reducePosition(p, q, px, f >= 1 ? '직접 종료' : '절반 종료');
-  save();
+  commit();
   toast(`${name} ${f >= 1 ? '종료' : '절반 정리'} · 실현손익 <b>${fUsd(r, true)}</b> USDC`);
-  renderAll(); drawPriceLines();
+  renderAll();
 }
 
-// 가격이 바뀔 때마다 청산·손절·익절 확인
+// 가격이 바뀔 때마다 청산·손절·익절·예약 체결 확인
 function checkTriggers() {
   if (catching) return false;
   let changed = false;
@@ -1264,7 +1555,12 @@ function checkTriggers() {
     toast(`<b>교차 청산</b> · ${names}<br>교차 자산이 유지증거금보다 작아져서 교차 포지션이 한꺼번에 정리됐어요. 격리 포지션은 그대로예요.`, 10000);
     changed = true;
   }
-  if (changed) { save(); renderAll(); drawPriceLines(); }
+  for (const o of [...S.orders]) {
+    if (!S.orders.includes(o)) continue;
+    const px = markOf(o.coin); if (!px) continue;
+    if (o.dir > 0 ? px <= o.px : px >= o.px) { const m = fillOrder(o, Date.now()); if (m) toast(m, 8000); changed = true; }
+  }
+  if (changed) { commit(); renderAll(); }
   return changed;
 }
 
@@ -1279,24 +1575,25 @@ function payday(at) {
 function checkPayday() {
   if (catching || S.sim) return;
   const due = duePaydays(Date.now()); if (!due.length) return;
-  due.forEach(payday); save(); renderAll(); drawPriceLines();
+  due.forEach(payday); commit(); renderAll();
   toast(`<b>월급날이에요!</b> 가상 월급 <b>${fUsd(SALARY * due.length)}</b> USDC가 지갑에 들어왔어요.`, 9000);
 }
 
-// 자리를 비운 동안을 시간 순서대로 되짚어요: 월급 입금, 격리 청산, 손절·익절, 교차 묶음 청산 (서버 없이 24시간 돌아가는 효과)
+// 자리를 비운 동안을 시간 순서대로 되짚어요: 월급 입금, 격리 청산, 손절·익절, 교차 묶음 청산, 예약 체결 (서버 없이 24시간 돌아가는 효과)
 async function catchUp() {
   if (S.sim) { catching = false; return; }
   catching = true;
+  const o = stored(); if (o && o.rev > (S.rev || 0)) S = o;   // 같은 브라우저의 다른 탭이 더 새 기록을 남겼으면 그걸로
   const now = Date.now(), from = Math.min(S.lastSeen || now, now), notes = [];
   const pays = duePaydays(now); let pi = 0;
   const pay = t => { while (pi < pays.length && pays[pi] <= t) payday(pays[pi++]); };
-  const coins = [...new Set(S.positions.map(p => p.coin))];
+  const coins = [...new Set([...S.positions, ...S.orders].map(p => p.coin))];
   if (coins.length && now - from >= 90e3) {
     const gap = now - from, D = 864e5;
     const iv = coins.some(isOkx)
       ? (gap < D ? '1m' : gap < 5 * D ? '5m' : gap < 15 * D ? '15m' : gap < 60 * D ? '1h' : gap < 240 * D ? '4h' : '1d')   // OKX 봉은 최근 1440개까지 빠르게 받아요
       : (gap < 3 * D ? '1m' : gap < 16 * D ? '5m' : gap < 200 * D ? '1h' : '1d');
-    const at = {}, lastC = {};
+    const at = {}, lastC = {}, ms = IV_MS[iv];
     await Promise.all(coins.map(async c => {
       let ks = []; try { ks = await candles(c, iv, from - 60e3, now); } catch (e) {}
       at[c] = new Map(ks.map(k => [k.t, k])); lastC[c] = ks[0]?.o;
@@ -1305,24 +1602,37 @@ async function catchUp() {
     for (const t of times) {
       pay(t);
       for (const p of [...S.positions]) {
-        const k = at[p.coin]?.get(t); if (!k || p.openedAt > t + IV_MS[iv]) continue;
+        const k = at[p.coin]?.get(t); if (!k || p.openedAt > t + ms) continue;
         const worst = p.dir > 0 ? k.l : k.h, best = p.dir > 0 ? k.h : k.l, name = sideName(p);
         if (p.mode === 'isolated') { const lq = liqOf(p); if (p.dir > 0 ? worst <= lq : worst >= lq) { liquidateIso(p, lq, t); notes.push(`${name} 격리 청산 (${fTime(t)})`); continue; } }
         if (p.sl && (p.dir > 0 ? worst <= p.sl : worst >= p.sl)) { reducePosition(p, p.size, p.sl, '손절', t); notes.push(`${name} 손절 (${fTime(t)})`); continue; }
         if (p.tp && (p.dir > 0 ? best >= p.tp : best <= p.tp)) { reducePosition(p, p.size, p.tp, '익절', t); notes.push(`${name} 익절 (${fTime(t)})`); }
       }
-      // 교차 묶음은 이 시간대에 종목마다 가장 불리했던 가격으로 확인해요 (보수적으로)
+      // 교차 묶음은 이 시간대에 종목마다 가장 불리했던 가격으로 확인해요 (보수적으로). 시세를 못 받은 종목이 있으면 판단하지 않아요.
       const worstOf = c => { const k = at[c]?.get(t), p = posOf(c); return k && p ? (p.dir > 0 ? k.l : k.h) : lastC[c]; };
       const cr = crossState(worstOf);
-      if (cr.n && cr.E < cr.MM) notes.push(`교차 청산: ${liquidateCross(worstOf, t)} (${fTime(t)})`);
+      if (cr.n && !cr.miss && cr.E < cr.MM) notes.push(`교차 청산: ${liquidateCross(worstOf, t)} (${fTime(t)})`);
+      // 예약 주문: 이 시간대 가격 범위가 지정가에 닿았으면 그 가격으로 체결. 주문을 건 뒤에 시작한 봉만 봐요 (걸기 전 가격으로 체결되지 않게)
+      const closeOf = c => at[c]?.get(t)?.c ?? lastC[c];
+      for (const o of [...S.orders]) {
+        const k = at[o.coin]?.get(t); if (!k || !S.orders.includes(o) || o.at > t) continue;
+        if (o.dir > 0 ? k.l <= o.px : k.h >= o.px) { const m = fillOrder(o, t, closeOf); if (m) notes.push(`${m} (${fTime(t)})`); }
+      }
       coins.forEach(c => { const k = at[c]?.get(t); if (k) lastC[c] = k.c; });
     }
+    const miss = coins.filter(c => !at[c].size);
+    if (miss.length) notes.push(`${miss.map(nameOf).join(', ')}: 지난 시세를 받지 못해서 자리 비운 사이의 청산·익절·손절·예약 체결은 확인하지 못했어요.`);
   }
   pay(now);
   S.lastSeen = now; catching = false;
-  save(); renderAll(); drawPriceLines();
+  if (notes.length || pays.length) commit(); else save();
+  renderAll();
   if (pays.length) notes.unshift(`<b>월급 ${pays.length}번</b> · +${fUsd(SALARY * pays.length)} USDC`);
-  if (notes.length) toast('자리를 비운 사이에 일어난 일이에요.<br>' + notes.join('<br>'), 12000);
+  if (notes.length) {
+    $('awayTxt').innerHTML = '<b>자리를 비운 사이에 일어난 일</b><br>' + notes.join('<br>');
+    $('awayBanner').hidden = false;
+    toast('자리를 비운 사이에 일어난 일이 있어요. 화면 맨 위 알림에서 확인하세요.', 8000);
+  }
 }
 
 // ───────────────────────── 내 거래 화면 ─────────────────────────
@@ -1336,11 +1646,28 @@ function renderPositions() {
       <td>${fUsd(p.size * (px || p.entry))}</td><td>${fPx(p.entry)}</td><td>${fPx(px)}</td>
       <td${p.mode === 'cross' ? ' title="다른 교차 포지션 가격과 지갑 현금이 지금 그대로일 때의 값이에요"' : ''}>${liqTxt(p)}</td>
       <td>${mTxt}</td>
-      <td>${p.tp ? fPx(p.tp) : '–'} / ${p.sl ? fPx(p.sl) : '–'}</td>
+      <td>${p.tp ? fPx(p.tp) + ` <button class="x" data-clr="tp" data-id="${p.id}" title="익절 지우기" aria-label="익절 지우기">×</button>` : '–'} / ${p.sl ? fPx(p.sl) + ` <button class="x" data-clr="sl" data-id="${p.id}" title="손절 지우기" aria-label="손절 지우기">×</button>` : '–'}</td>
       <td class="${cls(pnl)}">${fUsd(pnl, true)} (${fPct(pnl / base)})</td>
       <td class="acts"><button class="btn-sm" data-close="${p.id}" data-f="0.5">절반</button><button class="btn-sm" data-close="${p.id}" data-f="1">전체 종료</button></td></tr>`;
   });
   $('posRows').innerHTML = rows.join(''); $('posEmpty').hidden = rows.length > 0; $('posCnt').textContent = S.positions.length;
+  // 새로 시작한 기록처럼 보이면: 기록은 브라우저마다 따로라는 걸 알려 줘요
+  const fresh = !me && !S.sim && S.history.length <= 1 && !S.orders.length;
+  $('posEmpty').innerHTML = '아직 포지션이 없어요. 주문 칸에서 방식(교차·격리), 레버리지, 증거금을 정하고 롱이나 숏을 눌러 보세요.' + (fresh
+    ? '<br><br><b>전에 하던 기록이 안 보이나요?</b> 기록은 브라우저마다 따로 저장돼요(카카오톡 안에서 연 화면, 크롬, 사파리, 시크릿 창이 모두 따로예요). 전에 쓰던 브라우저로 열거나, 그 브라우저에서 <b>다른 기기·브라우저로 옮기기</b> 링크를 만들어 여기서 열어 주세요.' : '');
+}
+function renderOrders() {
+  const rows = [...S.orders].sort((a, b) => b.at - a.at).map(o => {
+    const px = markOf(o.coin);
+    return `<tr><td><b>${nameOf(o.coin)}</b> <span class="muted">${tick(o.coin)}${isOkx(o.coin) ? ' · OKX' : ''}</span></td>
+      <td><span class="side ${o.dir > 0 ? 'L' : 'S'}">${o.dir > 0 ? '롱' : '숏'} ${o.lev}배</span> <span class="tag">${o.ro ? '정리' : modeName(o.mode)}</span></td>
+      <td>${fPx(o.px)}</td><td>${fPx(px)} <span class="muted">(${px ? fPct(o.px / px - 1) : '–'})</span></td>
+      <td>${fUsd(o.margin)} · ${fUsd(o.margin * o.lev)}</td>
+      <td>${o.tp ? fPx(o.tp) : '–'} / ${o.sl ? fPx(o.sl) : '–'}</td>
+      <td>${fTime(o.at)}</td>
+      <td class="acts">${o.coin !== cur.coin ? `<button class="btn-sm" data-go="${o.coin}">차트</button>` : ''}<button class="btn-sm" data-cancel="${o.id}">취소</button></td></tr>`;
+  });
+  $('ordRows').innerHTML = rows.join(''); $('ordEmpty').hidden = rows.length > 0; $('ordCnt').textContent = S.orders.length;
 }
 function renderHistory() {
   const list = [...S.history].sort((a, b) => b.at - a.at);
@@ -1348,7 +1675,7 @@ function renderHistory() {
     ? `<tr><td>${fTime(h.at)}</td><td><b>${h.first ? '시작 자금' : '월급'}</b></td><td class="note" colspan="3">${h.first ? '처음 받은 가상 돈' : (new Date(h.at).getMonth() + 1) + '월 가상 월급'}</td><td><span class="tag pay">입금</span></td><td class="ok">+${fUsd(h.amount)}</td></tr>`
     : `<tr><td>${fTime(h.at)}</td><td>${nameOf(h.coin)}</td>
       <td><span class="side ${h.dir > 0 ? 'L' : 'S'}">${h.dir > 0 ? '롱' : '숏'} ${h.lev}배</span> <span class="tag">${modeName(h.mode)}</span></td><td>${fUsd(h.size * h.entry)}</td>
-      <td>${fPx(h.entry)} → ${fPx(h.exit)}</td><td><span class="tag ${/청산/.test(h.reason) ? 'liq' : ''}">${h.reason}</span></td>
+      <td>${fPx(h.entry)} → ${fPx(h.exit)}</td><td><span class="tag ${/청산/.test(h.reason) ? 'liq' : ''}">${esc(h.reason)}</span></td>
       <td class="${cls(h.realized)}">${fUsd(h.realized, true)}</td></tr>`);
   $('histRows').innerHTML = rows.join(''); $('histEmpty').hidden = rows.length > 0; $('histCnt').textContent = list.length;
 }
@@ -1360,12 +1687,12 @@ function renderEquity() {
   $('payTxt').textContent = S.sim ? '' : `다음 월급 ${nd.getMonth() + 1}월 1일${dd > 0 ? ' (D-' + dd + ')' : ''}`;
   $('cashTxt').textContent = fUsd(S.balance); $('isoTxt').textContent = fUsd(a.isoM);
   $('upnlTxt').textContent = fUsd(a.upnl, true); $('upnlTxt').className = 'num ' + cls(a.upnl);
-  $('depTxt').textContent = fUsd(S.deposited);
+  $('depTxt').textContent = fUsd(S.deposited); $('resTxt').textContent = fUsd(a.res);
   const r = a.cr.n ? (a.cr.E > 0 ? a.cr.MM / a.cr.E : 1) : NaN;
   $('riskTxt').textContent = isFinite(r) ? (r * 100).toFixed(1) + '%' : '–';
   $('riskTxt').className = 'num ' + (r >= .8 ? 'up' : r >= .5 ? 'warn-t' : '');
 }
-function renderAll() { renderPositions(); renderHistory(); renderEquity(); renderOrderSummary(); okx.sync(); }
+function renderAll() { renderPositions(); renderOrders(); renderHistory(); renderEquity(); renderOrderSummary(); okx.sync(); }
 
 let lastFrame = 0, pending = false;
 function onPrices() {
@@ -1373,7 +1700,7 @@ function onPrices() {
   if (pending) return; pending = true;
   requestAnimationFrame(() => {
     pending = false; const t = performance.now(); if (t - lastFrame < 250) return; lastFrame = t;
-    renderPositions(); renderEquity(); updateLiqLine(); renderBoard(); renderPicker();
+    renderPositions(); renderOrders(); renderEquity(); drawPriceLines(); renderBoard(); renderPicker();
   });
 }
 
@@ -1383,12 +1710,59 @@ function onPrices() {
 const boardOn = () => !!(BOARD_URL && BOARD_KEY);
 let me = null;   // { id, nick, secret } 이 브라우저의 참가 정보
 try { me = JSON.parse(localStorage.getItem('mock24.me')) || null; } catch (e) {}
-const board = { rows: new Map(), since: null, loading: false, loaded: false, err: '', sort: 'ret', tick: 0, lastSnap: '', lastSent: 0, sending: false, rt: null, drawn: 0 };
+// synced = 시작할 때 서버의 내 기록과 맞춰 봤는지. 맞춰 보기 전에는 알리지 않아요 (다른 기기에서 한 더 새 기록을 덮어쓰지 않게).
+const board = { rows: new Map(), since: null, loading: false, loaded: false, err: '', sort: 'ret', tick: 0, lastSnap: '', lastSent: 0, sending: false, rt: null, drawn: 0, synced: false };
 const r2 = v => Math.round(v * 100) / 100;
 const sig = v => +(+v).toPrecision(10);
+// 서버에 올리는 내 상태. 다른 기기에서 이어 할 수 있게 익절·손절·예약 주문·바뀐 횟수(rev)까지 담아요. (예전 앱은 모르는 칸을 무시해요)
 function snapshot() {
-  return { v: 1, bal: r2(S.balance), dep: S.deposited, pt: S.paidThrough,
-    pos: S.positions.map(p => ({ c: p.coin, d: p.dir, sz: sig(p.size), e: sig(p.entry), m: p.mode, mg: r2(p.margin), lev: p.lev })) };
+  return { v: 1, rev: S.rev || 0, bal: r2(S.balance), dep: S.deposited, pt: S.paidThrough,
+    pos: S.positions.map(p => ({ c: p.coin, d: p.dir, sz: sig(p.size), e: sig(p.entry), m: p.mode, mg: r2(p.margin), lev: p.lev, tp: p.tp || null, sl: p.sl || null, f: sig(p.fees || 0), t: p.openedAt, id: p.id })),
+    ord: S.orders.map(o => ({ id: o.id, c: o.coin, d: o.dir, px: sig(o.px), mg: r2(o.margin), lev: o.lev, m: o.mode, tp: o.tp || null, sl: o.sl || null, t: o.at, res: r2(o.res || 0), ...(o.ro ? { ro: 1 } : {}) })) };
+}
+// 서버 상태 → 이 브라우저 기록
+function fromSnap(st) {
+  const s = freshState();
+  Object.assign(s, { balance: st.bal, deposited: st.dep || START, paidThrough: st.pt ?? s.paidThrough, rev: st.rev || 0, history: [] });
+  const known = c => { if (!BY_COIN[c]) market(c); info[c] ||= { maxLev: 20, szDec: 3 }; return c; };
+  const n = v => +v || 0, mode = m => m === 'isolated' ? 'isolated' : 'cross', id = v => /^\w{1,16}$/.test(v) ? v : uid();
+  s.positions = (st.pos || []).filter(p => COIN_RE.test(p.c) && n(p.sz) > 0).map(p => ({ id: id(p.id), coin: known(p.c), dir: p.d > 0 ? 1 : -1, size: n(p.sz), entry: n(p.e), lev: n(p.lev) || 1, mode: mode(p.m), margin: p.m === 'isolated' ? n(p.mg) : 0, tp: n(p.tp) || null, sl: n(p.sl) || null, fees: n(p.f), openedAt: n(p.t) || Date.now() }));
+  s.orders = (st.ord || []).filter(o => COIN_RE.test(o.c) && n(o.px) > 0).map(o => ({ id: id(o.id), coin: known(o.c), dir: o.d > 0 ? 1 : -1, px: n(o.px), margin: n(o.mg), lev: n(o.lev) || 1, mode: mode(o.m), tp: n(o.tp) || null, sl: n(o.sl) || null, at: n(o.t) || Date.now(), res: n(o.res), ...(o.ro ? { ro: true } : {}) }));
+  return s;
+}
+const COIN_RE = /^[A-Za-z0-9:_.-]{1,40}$/;
+// 서버에 쌓인 거래·입금 기록 → 거래 기록 목록
+async function serverHistory(id) {
+  const r = await fetch(BOARD_URL + `/rest/v1/events?player=eq.${id}&select=body&order=id.desc&limit=500`, { headers: boardHeaders() });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const out = [];
+  for (const { body: b } of await r.json()) {
+    if (b?.k === 'trade' && COIN_RE.test(b.c)) out.push({ type: 'trade', id: uid(), coin: b.c, dir: b.d > 0 ? 1 : -1, lev: +b.lev || 1, mode: b.m === 'isolated' ? 'isolated' : 'cross', size: +b.sz || 0, entry: +b.e || 0, exit: +b.px || 0, reason: String(b.r || '').slice(0, 20), at: +b.at || 0, realized: +b.pnl || 0 });
+    else if (b?.k === 'pay') out.push({ type: 'deposit', id: uid(), at: +b.at || 0, amount: +b.amt || 0 });
+  }
+  return out;
+}
+function mergeHistory(a, b) {
+  const key = h => [h.type, h.at, h.coin || '', h.reason || ''].join('|'), seen = new Set(a.map(key));
+  return [...a, ...b.filter(h => !seen.has(key(h)))].sort((x, y) => y.at - x.at).slice(0, 500);
+}
+// 같은 참가 정보로 다른 기기에서 더 많이 거래했으면(서버의 rev가 더 크면) 그 기록을 가져와요
+async function pullMine() {
+  try {
+    if (!me || S.sim || !boardOn()) return false;
+    const r = await fetch(BOARD_URL + `/rest/v1/players?id=eq.${me.id}&select=updated_at,state`, { headers: boardHeaders() });
+    if (!r.ok) return false;
+    const row = (await r.json())[0], st = row?.state;
+    if (!st || typeof st.bal !== 'number' || typeof st.rev !== 'number' || st.rev <= (S.rev || 0)) return false;
+    const hist = await serverHistory(me.id).catch(() => []);
+    const s = fromSnap(st);
+    s.lastSeen = Math.min(Date.now(), Date.parse(row.updated_at) || Date.now());
+    s.createdAt = S.createdAt; s.history = mergeHistory(S.history, hist);
+    S = s; persist(); board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now();
+    toast('다른 기기(브라우저)에서 한 거래를 가져왔어요.', 6000);
+    return true;
+  } catch (e) { return false; }
+  finally { board.synced = true; }
 }
 // 거래·입금 기록을 모아 두었다가 다음 알림 때 함께 보내요 (서버가 서버 시각을 붙여 쌓아요)
 function note(ev) {
@@ -1409,7 +1783,7 @@ async function rpc(fn, body) {
 }
 function scheduleReport() { if (!me || S.sim || !boardOn()) return; clearTimeout(board.rt); board.rt = setTimeout(sendReport, 1500); }
 async function sendReport() {
-  if (!me || S.sim || !boardOn() || board.sending) return;
+  if (!me || S.sim || !boardOn() || board.sending || !board.synced) return;
   const snap = JSON.stringify(snapshot()), out = (S.outbox || []).slice(0, 200);
   // 바뀐 게 없으면 5분에 한 번만 (최근 접속 표시용)
   if (snap === board.lastSnap && !out.length && !S.resetPending && Date.now() - board.lastSent < 5 * 60e3) return;
@@ -1518,6 +1892,44 @@ async function leaveBoard() {
   try { await rpc('leave_game', { p_id: me.id, p_secret: me.secret }); } catch (e) { if (!/auth/.test(e.message)) return toast('순위 서버에 연결하지 못했어요. 잠시 뒤에 다시 시도해 주세요.'); }
   board.rows.delete(me.id); forgetMe(); toast('순위에서 나갔어요. 서버에 있던 내 기록을 지웠어요.');
 }
+// 다른 기기·브라우저에서 이어하기: 링크(#resume=참가번호.비밀코드)를 열면 서버에 있는 내 기록을 가져와요.
+// 링크의 # 뒤는 주소 서버(GitHub Pages)로 보내지지 않아요. 열자마자 주소창에서 지워요.
+const moveLink = () => location.origin + location.pathname + '#resume=' + me.id + '.' + me.secret;
+function showMove() {
+  if (S.sim) return toast('연습 시세에서는 옮길 수 없어요.');
+  if (!me) return ask('순위에 참가해야 옮길 수 있어요', '지금 기록은 이 브라우저 안에만 있어요. 순위에 참가하면 기록이 순위 서버에도 올라가서, 이어하기 링크로 다른 휴대폰·컴퓨터·브라우저에서 같은 기록으로 계속할 수 있어요.', '순위 탭 열기', () => openTab('board'));
+  ask('다른 기기에서 이어하기', '이 링크를 복사해서, 이어서 할 기기(브라우저)에서 열어 주세요. 그 뒤로는 두 곳 중 어디서 하든 더 새 기록을 서로 가져와요. 이 링크는 비밀번호와 같아요. 받은 사람은 내 기록으로 거래할 수 있으니 다른 사람에게 보내지 마세요.', '링크 복사', () => {
+    const link = moveLink();
+    navigator.clipboard?.writeText(link).then(() => toast('링크를 복사했어요. 이어서 할 브라우저 주소창에 붙여 넣어 열어 주세요.', 6000), () => toast('복사하지 못했어요. 링크 칸을 길게 눌러 복사해 주세요.'));
+  }, moveLink());
+}
+async function resumeFromLink() {
+  const m = /^#resume=([0-9a-f-]{36})\.([0-9a-f]{24,})$/i.exec(location.hash); if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  if (!boardOn() || S.sim) return;
+  const [, id, secret] = m;
+  if (me?.id === id) return toast('이미 이 기록으로 하고 있어요.');
+  let row, hist;
+  try {
+    const r = await fetch(BOARD_URL + `/rest/v1/players?id=eq.${id}&select=id,nick,created_at,updated_at,state`, { headers: boardHeaders() });
+    row = r.ok ? (await r.json())[0] : null;
+    if (!row?.state || typeof row.state.bal !== 'number') return toast('이어할 기록을 찾지 못했어요. 순위에서 나갔거나 링크가 잘렸을 수 있어요.', 8000);
+    hist = await serverHistory(id).catch(() => []);
+    await rpc('report', { p_id: id, p_secret: secret, p_state: row.state, p_events: [] });   // 비밀 코드가 맞는지 확인 (서버 기록은 그대로)
+  } catch (e) { return toast(/auth/.test(e.message) ? '링크가 맞지 않아요. 원래 브라우저에서 링크를 다시 복사해 주세요.' : '순위 서버에 연결하지 못했어요. 잠시 뒤에 링크를 다시 열어 주세요.', 8000); }
+  const go = async () => {
+    me = { id, nick: row.nick, secret }; try { localStorage.setItem('mock24.me', JSON.stringify(me)); } catch (_) {}
+    const s = fromSnap(row.state), first = Math.min(Date.parse(row.created_at) || Date.now(), ...hist.map(h => h.at));
+    s.lastSeen = Math.min(Date.now(), Date.parse(row.updated_at) || Date.now()); s.createdAt = first;
+    s.history = mergeHistory(hist, [{ type: 'deposit', id: uid(), at: first, amount: START, first: true }]);
+    S = s; board.synced = true; persist(); board.lastSnap = JSON.stringify(snapshot()); board.lastSent = Date.now();
+    toast(`<b>${esc(row.nick)}</b>의 기록을 가져왔어요. 이제 이 브라우저에서도 이어서 할 수 있어요.`, 7000);
+    renderBoard(true); await catchUp(); fetchBoard(true);
+  };
+  const busy = S.positions.length || S.orders.length || S.history.length > 1 || me;
+  if (!busy) return go();
+  ask('이 브라우저 기록을 바꿀까요?', `지금 이 브라우저에 있는 기록(총자산 ${fUsd(account().equity)} USDC, 포지션 ${S.positions.length}개)은 지워지고 '${row.nick}'의 기록으로 바뀌어요.` + (me ? ` 지금 참가 중인 '${me.nick}'은 이 브라우저에서만 빠지고 서버 기록은 그대로예요.` : ''), '바꾸기', go);
+}
 // 순위 탭을 보고 있으면 10초마다, 아니면 1분마다 바뀐 사람만 받아요. 2분마다 전체를 새로 받아서 나간 사람을 지워요.
 setInterval(() => {
   if (!boardOn() || document.hidden) return;
@@ -1604,30 +2016,75 @@ $('pctChips').addEventListener('click', e => { const b = e.target.closest('[data
 $('modeSeg').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b || b.disabled) return; uiMode = b.dataset.mode; try { localStorage.setItem('mock24.mode', uiMode); } catch (_) {} renderOrderSummary(); });
 $('longBtn').addEventListener('click', () => placeOrder(1));
 $('shortBtn').addEventListener('click', () => placeOrder(-1));
-$('posRows').addEventListener('click', e => { const b = e.target.closest('[data-close]'); if (b) manualClose(b.dataset.close, +b.dataset.f); });
-document.querySelector('.tabs').addEventListener('click', e => {
-  const b = e.target.closest('[data-tab]'); if (!b) return;
-  document.querySelectorAll('.tabs [data-tab]').forEach(x => x.setAttribute('aria-selected', x === b));
-  ['pos', 'hist', 'board', 'whatif'].forEach(t => $('tab-' + t).hidden = t !== b.dataset.tab);
-  if (b.dataset.tab === 'board') { renderBoard(true); fetchBoard(!board.loaded); }
+$('posRows').addEventListener('click', e => {
+  const b = e.target.closest('[data-close]'); if (b) return manualClose(b.dataset.close, +b.dataset.f);
+  const x = e.target.closest('[data-clr]'), p = x && S.positions.find(q => q.id === x.dataset.id); if (p) setTpSl(p, x.dataset.clr, null);
 });
+$('ordRows').addEventListener('click', e => {
+  const c = e.target.closest('[data-cancel]'); if (c) return cancelOrder(c.dataset.cancel);
+  const g = e.target.closest('[data-go]'); if (g) { selectMarket(g.dataset.go); $('chart').scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+});
+function openTab(t) {
+  document.querySelectorAll('.tabs [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === t));
+  ['pos', 'ord', 'hist', 'board', 'whatif'].forEach(k => $('tab-' + k).hidden = k !== t);
+  if (t === 'board') { renderBoard(true); fetchBoard(!board.loaded); }
+}
+document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) openTab(b.dataset.tab); });
+// 주문 방식: 시장가(바로) · 지정가(예약)
+function setOrderType(t) {
+  orderType = t;
+  document.querySelectorAll('#typeSeg button').forEach(x => x.setAttribute('aria-pressed', x.dataset.type === t));
+  $('limitField').hidden = t !== 'limit';
+  if (t === 'limit' && !limitPx() && markOf(cur.coin)) $('limitPx').value = roundPx(markOf(cur.coin));
+  renderOrderSummary();
+}
+$('typeSeg').addEventListener('click', e => { const b = e.target.closest('[data-type]'); if (b) setOrderType(b.dataset.type); });
+$('limitNow').addEventListener('click', () => { const px = markOf(cur.coin); if (px) { $('limitPx').value = roundPx(px); renderOrderSummary(); } });
+['limitPx', 'tp', 'sl'].forEach(k => $(k).addEventListener('input', renderOrderSummary));
+$('bookView').addEventListener('click', e => { const r = e.target.closest('[data-px]'); if (!r) return; if (orderType !== 'limit') setOrderType('limit'); $('limitPx').value = +r.dataset.px; renderOrderSummary(); });
+function renderLineSeg() { document.querySelectorAll('#lineSeg [data-ls]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.ls === lineStyle)); }
+$('lineSeg').addEventListener('click', e => { const b = e.target.closest('[data-ls]'); if (!b) return; lineStyle = +b.dataset.ls; try { localStorage.setItem('mock24.line', String(lineStyle)); } catch (_) {} renderLineSeg(); drawPriceLines(); });
+// 차트 줄 끌기 (차트보다 먼저 받아야 해서 capture 단계에서 들어요)
+$('chart').addEventListener('mousedown', dragStart, true);
+$('chart').addEventListener('touchstart', dragStart, { capture: true, passive: false });
+window.addEventListener('mousemove', dragMove);
+window.addEventListener('touchmove', dragMove, { passive: false });
+window.addEventListener('mouseup', dragEnd);
+window.addEventListener('touchend', dragEnd);
+window.addEventListener('touchcancel', dragEnd);
+$('moveBtn').addEventListener('click', showMove);
+$('moveBtn2').addEventListener('click', showMove);
+$('awayClose').addEventListener('click', () => { $('awayBanner').hidden = true; });
+// 카카오톡 같은 앱 안의 브라우저: 기록이 따로 저장된다고 알려 줘요
+if (/KAKAOTALK|Instagram|FBAN|FBAV|NAVER\(inapp|DaumApps|\bLine\//i.test(navigator.userAgent)) { $('inappBanner').hidden = false; $('inappOpen').hidden = !/KAKAOTALK/i.test(navigator.userAgent); }
+$('inappOpen').addEventListener('click', () => { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href.split('#')[0]); });
+$('inappClose').addEventListener('click', () => { $('inappBanner').hidden = true; });
 $('joinForm').addEventListener('submit', joinBoard);
 $('sortSeg').addEventListener('click', e => { const b = e.target.closest('[data-sort]'); if (!b) return; board.sort = b.dataset.sort; document.querySelectorAll('#sortSeg button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderBoard(true); });
 let modalAct = null;
-function ask(title, body, yes, fn) { $('modalTitle').textContent = title; $('modalBody').textContent = body; $('modalYes').textContent = yes; modalAct = fn; $('modal').hidden = false; $('modalNo').focus(); }
-$('resetBtn').addEventListener('click', () => ask('처음부터 다시 할까요?', '보유 포지션, 거래 기록, 지금까지 받은 월급이 모두 지워지고 10,000 USDC로 다시 시작해요. 다음 월급은 다음 달 1일에 들어와요.' + (me ? ' 순위에는 "다시 시작" 횟수가 표시돼요.' : ''), '다시 시작', () => {
-  const wasSim = S.sim; S = freshState(); S.sim = wasSim;
-  if (me && !wasSim) { S.resetPending = true; note({ k: 'reset' }); }
-  save(); renderAll(); drawPriceLines(); renderBoard(true);
-  toast(`10,000 USDC로 새로 시작했어요. 다음 월급은 ${new Date(monthStart(S.paidThrough + 1)).getMonth() + 1}월 1일에 들어와요.`);
-}));
+function ask(title, body, yes, fn, link) {
+  $('modalTitle').textContent = title; $('modalBody').textContent = body; $('modalYes').textContent = yes; modalAct = fn;
+  $('modalLinkBox').hidden = !link; $('modalLink').value = link || '';
+  $('modal').hidden = false; $('modalNo').focus();
+}
+$('modalLink').addEventListener('focus', e => e.target.select());
 $('leaveBtn').addEventListener('click', () => ask('순위에서 나갈까요?', '서버에 있는 내 닉네임과 기록이 지워져요. 이 브라우저의 거래 기록은 그대로예요. 다시 참가하면 새로 등록돼요.', '나가기', leaveBoard));
 $('modalNo').addEventListener('click', () => { $('modal').hidden = true; });
 $('modalYes').addEventListener('click', () => { $('modal').hidden = true; const f = modalAct; modalAct = null; f && f(); });
 $('retryBtn').addEventListener('click', () => { feed.stop(); feed.mode = 'live'; feed.retry = 0; sim.timer && clearInterval(sim.timer); if (S.sim) S = load(); catching = true; $('netBanner').hidden = true; boot(); });
 $('simBtn').addEventListener('click', goSim);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); else catchUp(); });
-setInterval(save, 15000);
+// 다시 보이면: 다른 기기의 더 새 기록을 확인하고, 자리 비운 사이를 되짚어요
+async function wake() { if (S.sim) return; catching = true; await pullMine(); await catchUp(); }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); else wake(); });
+// 같은 브라우저에서 탭(창)을 여러 개 열었을 때: 다른 탭이 저장한 더 새 기록을 바로 따라가요
+window.addEventListener('storage', e => {
+  if (e.key === 'mock24.me') { try { me = JSON.parse(e.newValue) || null; } catch (_) { me = null; } renderBoard(true); return; }
+  if (e.key !== STORE_KEY || !e.newValue || S.sim || catching) return;
+  let o; try { o = fix(JSON.parse(e.newValue)); } catch (_) { return; }
+  if (o.v === 2 && (o.rev > (S.rev || 0) || (o.rev === (S.rev || 0) && document.hidden))) adopt(o);
+});
+window.addEventListener('hashchange', resumeFromLink);
+setInterval(() => { if (!document.hidden) save(); }, 15000);   // 숨은 탭은 주기 저장을 쉬어요 (보이는 탭 기록을 덮어쓰지 않게)
 setInterval(checkPayday, 30000);
 window.addEventListener('resize', () => renderBook());
 
@@ -1639,12 +2096,17 @@ async function boot() {
   feed.connect();
   let saved = 'BTC'; try { saved = localStorage.getItem('mock24.coin') || 'BTC'; } catch (e) {}
   await selectMarket(saved, true);
+  if (/^#resume=/.test(location.hash)) await resumeFromLink();
+  await pullMine();
   await catchUp();
   if (boardOn()) fetchBoard(true);
 }
-makeChart(); setupWhatIf(); renderPositions(); renderHistory(); renderEquity(); renderOrderSummary(); renderQuote(); renderBoard(true);
+// 브라우저가 저장 공간이 부족할 때 이 사이트 기록을 먼저 지우지 않도록 요청해요 (크롬 등은 묻지 않고 정해요. 파이어폭스는 창을 띄워서 건너뛰어요)
+if (!/Firefox\//.test(navigator.userAgent)) navigator.storage?.persist?.().catch(() => {});
+makeChart(); setupWhatIf(); renderLineSeg(); renderPositions(); renderOrders(); renderHistory(); renderEquity(); renderOrderSummary(); renderQuote(); renderBoard(true); started = true;
 boot();
-window.__mock24 = { okx, MARKETS, BY_COIN, NAMES, loadMarkets, selectMarket, board, me: () => me, snapshot, valueOf, fetchBoard, state: () => S, setState: s => { S = s; }, info, mids, cur, feed, markOf, placeOrder, manualClose, checkTriggers, checkPayday, catchUp, crossState, liqOf, account, liqPrice, save, load, isCatching: () => catching };
+window.__mock24 = { okx, MARKETS, BY_COIN, NAMES, loadMarkets, selectMarket, board, me: () => me, snapshot, valueOf, fetchBoard, state: () => S, setState: s => { S = s; }, info, mids, cur, feed, markOf, placeOrder, manualClose, checkTriggers, checkPayday, catchUp, crossState, liqOf, account, liqPrice, save, load, isCatching: () => catching,
+  commit, cancelOrder, setOrderType, setTpSl, setIsoMargin, isoMarginFor, fromSnap, pullMine, resumeFromLink, lines, series: () => series, chart: () => chart, drawPriceLines, plan, orderType: () => orderType, lineStyle: () => lineStyle };
 })();
 </script>
 </body>
