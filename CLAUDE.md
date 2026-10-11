@@ -9,11 +9,17 @@
 - 시세: Hyperliquid 공개 API, 키 없음.
   - REST `POST https://api.hyperliquid.xyz/info` (`metaAndAssetCtxs`, `allMids`, `l2Book`, `candleSnapshot`)
   - 웹소켓 `wss://api.hyperliquid.xyz/ws` (`allMids`, `l2Book`, `trades`, `activeAssetCtx`, `candle`)
-  - 주식·지수는 HIP-3 거래소 `xyz` (코인 이름 예: `xyz:XYZ100`, `xyz:KR200`, `xyz:SMSN`). `meta`·`allMids` 요청에 `"dex":"xyz"`를 붙인다.
-  - 요청 한도: REST는 IP당 1분 무게 1200, 웹소켓은 IP당 연결 10개.
+  - 주식·지수·원자재는 HIP-3 거래소 `xyz`·`para`·`io`·`mkts` (코인 이름 예: `xyz:XYZ100`, `para:TTWO`, `io:ANTH`). `metaAndAssetCtxs`·`allMids` 요청에 `"dex":"xyz"`처럼 붙인다. `HL_DEXES`.
+  - 요청 한도: REST는 IP당 1분 무게 1200, 웹소켓은 IP당 연결 10개. 폴링은 1분 무게 약 650.
 - 웹소켓이 3번 실패하면 2.5초 간격 REST 방식으로 바뀌고, REST도 막히면 연습용 가짜 시세를 고를 수 있다.
+- OKX 주식·원자재 선물 (2026-10-11 추가, 키 없음, `okx` 객체): 코인 id `okx:티커` (예 `okx:BRKB` ↔ `BRKB-USDT-SWAP`).
+  - REST `https://www.okx.com/api/v5/` `public/instruments?instType=SWAP`(instCategory 3 주식·4 원자재), `market/tickers|ticker|books|trades|candles|history-candles`. 봉은 최신순, `candles`는 최근 1440개(한 번 300개), 그보다 오래된 건 `history-candles`(100개). 한도: tickers 2초 20번, candles·books 2초 40번, history-candles 2초 20번.
+  - 웹소켓 `wss://ws.okx.com/ws/v5/public` 하나: `tickers`(필요한 종목만), 지금 종목의 `books5`·`trades`·`mark-price`. 'ping' → 'pong'. 봉은 체결로 이어 그리고 10초마다 REST로 맞춘다. 웹소켓 2번 실패하면 2.5초 REST.
+  - 수량 = 계약 수 × `ctVal`(종목 `ct`). 최대 레버리지 = 종목 `lever`.
+  - 필요한 종목 = 지금 종목 + 내 포지션 + 순위에 보이는 포지션 (`okx.need()`). 없으면 연결을 닫는다.
+- 종목 목록은 동적 (`loadMarkets`): 기본 17개(`BASE`, 코인 id 바꾸지 말 것) + Hyperliquid 코인 6개 + xyz 전부 + para·io·mkts 중 이름표에 있는 것 + OKX 주식·원자재. 같은 종목은 `ALIAS`로 묶어 Hyperliquid(xyz 먼저) 것 하나만. 이름은 `NAME_TABLE`(모르는 종목은 티커만, 묶음 '기타'). 목록은 `localStorage` `mock24.mkts`에 저장(OKX 목록은 6시간마다 새로). 목록에서 빠진 종목도 `BY_COIN`에 남아 예전 포지션 이름이 보인다.
 - 상태는 브라우저 `localStorage`의 `mock24.v2`에만 저장한다(`v: 2`). 예전 `mock24.v1`이 있으면 처음 열 때 `migrate()`로 옮기고 v1 키는 지우지 않는다.
-- 다시 열면 `catchUp()`이 자리를 비운 시간을 시간 순서대로 되짚는다: 월급 입금, 격리 청산, 손절·익절, 교차 묶음 청산. 봉 간격은 비운 시간에 따라 1분·5분·1시간·1일(요청 하나당 최근 5000개 한도 안쪽). 되짚는 동안(`catching`)은 실시간 판정과 `lastSeen` 갱신을 멈춘다.
+- 다시 열면 `catchUp()`이 자리를 비운 시간을 시간 순서대로 되짚는다: 월급 입금, 격리 청산, 손절·익절, 교차 묶음 청산. 봉 간격은 비운 시간에 따라 1분·5분·1시간·1일(요청 하나당 최근 5000개 한도 안쪽). OKX 종목이 끼면 1분·5분·15분·1시간·4시간·1일(OKX 최근 1440개 안쪽). 되짚는 동안(`catching`)은 실시간 판정과 `lastSeen` 갱신을 멈춘다.
 - 연습용 가짜 시세에서는 저장하지 않는 별도 계좌(`S.sim`)를 쓴다. 가짜 가격이 진짜 기록을 청산하지 않게 하려는 것.
 
 ## 순위 (2026-10-11 추가)
@@ -40,4 +46,5 @@
 - 결제, 외부 공개, 개인정보를 다루는 변경은 실행 전에 사용자에게 확인받는다.
 - 비밀값(API 키 등)은 코드에 넣지 않는다. 지금 구조는 키가 필요 없다.
 - 휴대폰 폭(약 400px)에서 화면이 가로로 넘치지 않는지 확인한다.
-- 바이낸스 API는 클라우드 개발 환경에서 지역 제한으로 막혀 있다. 클로드 코드 웹 환경의 브라우저에서는 웹소켓이 프록시에 막히므로 화면 시험은 REST 방식으로 하고, 웹소켓 자료 형식은 Node의 `WebSocket`으로 확인한다.
+- 바이낸스 API는 클라우드 개발 환경에서 지역 제한으로 막혀 있다. 클로드 코드 웹 환경의 브라우저에서는 웹소켓이 프록시에 막히므로 화면 시험은 REST 방식으로 하고, 웹소켓 자료 형식은 Node의 `WebSocket`으로 확인한다. OKX 웹소켓 처리는 `__mock24.okx.onMsg`에 메시지를 직접 넣어 시험한다. OKX 웹소켓은 443 포트(`wss://ws.okx.com/ws/v5/public`)로 연결한다(8443은 이 환경에서 막힘).
+- 친구들이 이미 쓰고 있다: 저장 형식(`mock24.v2`)과 기존 코인 id를 바꾸면 기록이 깨진다. 바꿔야 하면 `migrate()`처럼 옮기는 코드를 함께 넣고 예전 기록으로 시험한다.

@@ -2,7 +2,7 @@
 
 가상 돈(사이버머니)으로 롱·숏 레버리지 거래를 연습하는 모의 거래소예요. 실제 돈은 오가지 않아요.
 
-- 시세: [Hyperliquid](https://hyperliquid.xyz) 공개 API. 주식·지수·원자재는 [trade[XYZ]](https://trade.xyz) 시장 가격이라 주말에도 움직여요. 정규장이 닫힌 시간에는 거래자들이 만든 가격이에요.
+- 시세: [Hyperliquid](https://hyperliquid.xyz) 공개 API와 [OKX](https://www.okx.com) 공개 API(키 없음). 코인 6개와 주식·지수·ETF·원자재·환율 등 230여 개 종목. 주식 쪽은 [trade[XYZ]](https://trade.xyz) 같은 Hyperliquid 위 시장과 OKX 주식 선물 가격이라 주말에도 움직여요. 정규장이 닫힌 시간에는 거래자들이 만든 가격이에요.
 - 매달 1일 0시(기기 시간)에 가상 월급 10,000 USDC가 들어와요. 이익과 손실은 계속 이어져요.
 - 실제 DEX처럼 종목마다 포지션 하나, 교차(Cross)·격리(Isolated) 증거금을 고를 수 있어요.
 - **순위**: 닉네임으로 참가하면 모두의 수익률 순위가 실시간으로 공개돼요. 참가하지 않으면 기록은 각자 브라우저 안에만 있어요. 순위 서버 설정은 `supabase.sql`.

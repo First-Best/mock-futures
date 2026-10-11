@@ -75,7 +75,10 @@ button { cursor: pointer; }
 .equity .s { font-size: 12px; }
 
 /* 종목 목록 */
-.picker { position: absolute; left: 12px; top: calc(100% + 6px); width: min(420px, calc(100vw - 24px)); max-height: 70vh; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 12px 32px rgba(0,0,0,.18); padding: 6px; }
+.picker { position: absolute; left: 12px; top: calc(100% + 6px); width: min(440px, calc(100vw - 24px)); max-height: 72vh; overflow: auto; overscroll-behavior: contain; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 12px 32px rgba(0,0,0,.18); padding: 0 6px 6px; z-index: 30; }
+.pick-top { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: 8px 2px 6px; display: grid; gap: 4px; border-bottom: 1px solid var(--line); }
+.pick-top input { font-family: var(--font-ui); font-size: 14px; }
+.picker h4 span { font-weight: 500; letter-spacing: 0; }
 .picker h4 { margin: 10px 8px 4px; font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .06em; }
 .picker button { width: 100%; display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; background: none; border: 0; border-radius: 6px; padding: 7px 8px; text-align: left; }
 .picker button:hover, .picker button[aria-current="true"] { background: var(--panel-2); }
@@ -243,7 +246,13 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
       <div class="s num" id="eqRet">누적 손익 +0.00</div>
       <div class="s muted"><span id="rankTxt"></span><span id="payTxt"></span></div>
     </div>
-    <div class="picker" id="picker" role="listbox" hidden></div>
+    <div class="picker" id="picker" hidden>
+      <div class="pick-top">
+        <div class="inp"><input id="pickQ" type="search" placeholder="종목 찾기 (예: 삼성, 테슬라, NVDA, 금)" autocomplete="off" enterkeyhint="go" aria-label="종목 찾기"></div>
+        <p class="hint" id="pickInfo"></p>
+      </div>
+      <div id="pickList" role="listbox" aria-label="종목"></div>
+    </div>
   </div>
 </header>
 
@@ -320,7 +329,7 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
     <p class="rules">가상 돈으로만 거래해요. <b>매달 1일 0시</b>(이 기기 시간)에 가상 월급 10,000 USDC가 지갑에 들어오고, 이익과 손실은 그대로 이어져요.</p>
     <p class="rules">한 종목에는 포지션이 하나예요. 같은 방향 주문은 더해져 평균 진입가가 되고, 반대 방향 주문은 포지션을 줄이거나 뒤집어요.</p>
     <p class="rules"><b>교차</b>는 지갑 현금 전체가 모든 교차 포지션의 담보라 손익이 서로 엮여요. 교차 자산(지갑 현금 + 교차 평가손익)이 교차 포지션들의 유지증거금 합계보다 작아지면 교차 포지션이 한꺼번에 청산되고 남은 담보도 잃어요. <b>격리</b>는 그 포지션에 넣은 증거금만 잃어요.</p>
-    <p class="rules">실제 시세는 <a href="https://hyperliquid.xyz" target="_blank" rel="noopener">Hyperliquid</a> 공개 자료를 따르고, 주식·지수·원자재는 <a href="https://trade.xyz" target="_blank" rel="noopener">trade[XYZ]</a> 시장 가격이에요. 정규장이 닫힌 시간(주말·야간)에는 거래자들이 만드는 가격이라 실제 지수와 달라질 수 있어요. 수수료 0.05%, 펀딩비 미반영, 유지증거금은 최대 레버리지 기준 초기증거금의 절반으로 계산해요.</p>
+    <p class="rules">실제 시세는 <a href="https://hyperliquid.xyz" target="_blank" rel="noopener">Hyperliquid</a> 공개 자료를 따르고, 주식·지수·원자재는 <a href="https://trade.xyz" target="_blank" rel="noopener">trade[XYZ]</a> 등 Hyperliquid 위 시장 가격이에요. 종목 이름 옆에 <b>OKX</b>가 붙은 종목은 <a href="https://www.okx.com" target="_blank" rel="noopener">OKX</a> 거래소의 주식·원자재 선물 시세예요. 정규장이 닫힌 시간(주말·야간)에는 거래자들이 만드는 가격이라 실제 주가와 달라질 수 있어요. 수수료 0.05%, 펀딩비 미반영, 유지증거금은 최대 레버리지 기준 초기증거금의 절반으로 계산해요.</p>
   </section>
 
   <section class="panel p-pos" aria-label="내 거래">
@@ -420,31 +429,44 @@ const OLD_KEY = 'mock24.v1';  // v0.1 기록 (처음 열 때 새 방식으로 �
 // 공개용 키(sb_publishable_...)는 브라우저에 넣어도 되는 키예요. 서버 쪽 규칙은 supabase.sql 에 있어요.
 const BOARD_URL = 'https://qilswrphnmshaewzjtgj.supabase.co';
 const BOARD_KEY = 'sb_publishable_rF6Kk63W11LAsPFr-JZI0Q_JtYeLjQL';
-const MARKETS = [
-  { coin: 'BTC', name: '비트코인', group: '코인' },
-  { coin: 'ETH', name: '이더리움', group: '코인' },
-  { coin: 'SOL', name: '솔라나', group: '코인' },
-  { coin: 'XRP', name: '리플', group: '코인' },
-  { coin: 'DOGE', name: '도지코인', group: '코인' },
-  { coin: 'HYPE', name: '하이퍼리퀴드', group: '코인' },
-  { coin: 'xyz:XYZ100', name: '나스닥100', group: '지수', stock: true },
-  { coin: 'xyz:SP500', name: 'S&P 500', group: '지수', stock: true },
-  { coin: 'xyz:KR200', name: '코리아200', group: '지수', stock: true, krx: true },
-  { coin: 'xyz:SMSN', name: '삼성전자', group: '한국 주식', stock: true, krx: true },
-  { coin: 'xyz:SKHX', name: 'SK하이닉스', group: '한국 주식', stock: true, krx: true },
-  { coin: 'xyz:HYUNDAI', name: '현대차', group: '한국 주식', stock: true, krx: true },
-  { coin: 'xyz:NVDA', name: '엔비디아', group: '미국 주식', stock: true },
-  { coin: 'xyz:TSLA', name: '테슬라', group: '미국 주식', stock: true },
-  { coin: 'xyz:AAPL', name: '애플', group: '미국 주식', stock: true },
-  { coin: 'xyz:GOLD', name: '금', group: '원자재', stock: true },
-  { coin: 'xyz:CL', name: 'WTI 원유', group: '원자재', stock: true },
-];
-const BY_COIN = Object.fromEntries(MARKETS.map(m => [m.coin, m]));
+const HL_DEXES = ['', 'xyz', 'para', 'io', 'mkts'];   // Hyperliquid 기본 시장('') + 주식·지수·원자재를 올린 HIP-3 거래소들
+const OKX = 'https://www.okx.com/api/v5/';
+const OKX_WS = 'wss://ws.okx.com/ws/v5/public';
+const CRYPTO = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'HYPE'];
+// 처음부터 있던 종목. 시세 목록을 못 받아도 늘 보여요. 코인 id(BTC, xyz:NVDA …)는 저장된 포지션과 이어져 있어서 바꾸지 않아요.
+const BASE = [...CRYPTO, 'xyz:XYZ100', 'xyz:SP500', 'xyz:KR200', 'xyz:SMSN', 'xyz:SKHX', 'xyz:HYUNDAI', 'xyz:NVDA', 'xyz:TSLA', 'xyz:AAPL', 'xyz:GOLD', 'xyz:CL'];
+const GROUPS = ['코인', '지수', '미국 주식', '한국 주식', '해외 주식', 'ETF', '레버리지 ETF', '원자재', '외환·금리', '상장 전 기업', '크립토 지수', '기타'];
+// 종목 이름표: "티커 이름|티커 이름". 이름을 확인하지 못한 종목은 지어내지 않고 티커만 보여 줘요(묶음 '기타').
+const NAME_TABLE = {
+  '코인': 'BTC 비트코인|ETH 이더리움|SOL 솔라나|XRP 리플|DOGE 도지코인|HYPE 하이퍼리퀴드',
+  '지수': 'XYZ100 나스닥100|SP500 S&P 500|KR200 코리아200|JP225 일본 225|SMALL2000 미국 소형주 2000',
+  '미국 주식': 'NVDA 엔비디아|TSLA 테슬라|AAPL 애플|MSFT 마이크로소프트|GOOGL 알파벳 (구글)|AMZN 아마존|META 메타|AVGO 브로드컴|BRKB 버크셔 해서웨이 B|LLY 일라이 릴리|WMT 월마트|ORCL 오라클|XOM 엑슨모빌|JNJ 존슨앤드존슨|COST 코스트코|NFLX 넷플릭스|AMD AMD|MU 마이크론|PLTR 팔란티어|INTC 인텔|CSCO 시스코|KO 코카콜라|MRK 머크|UNH 유나이티드헬스|CVX 셰브론|AMAT 어플라이드 머티어리얼즈|LRCX 램리서치|KLAC KLA|DELL 델|IBM IBM|CRM 세일즈포스|NOW 서비스나우|ADBE 어도비|ACN 액센츄어|QCOM 퀄컴|CRWD 크라우드스트라이크|GEV GE 버노바|MRVL 마벨|SPCX 스페이스X|' +
+    'COIN 코인베이스|HOOD 로빈후드|MSTR 스트래티지|STRC 스트래티지 우선주 (STRC)|CRCL 서클|BMNR 비트마인|PURRDAT 하이퍼리퀴드 스트래티지스|IREN 아이렌|CIFR 사이퍼 마이닝|MARA 마라 홀딩스|RIOT 라이엇 플랫폼스|HUT 헛8|' +
+    'SNDK 샌디스크|WDC 웨스턴디지털|STX 시게이트|SMCI 슈퍼마이크로|NBIS 네비우스|CRWV 코어위브|CBRS 세레브라스|QNT 퀀티뉴엄|IONQ 아이온큐|NET 클라우드플레어|RDDT 레딧|SNOW 스노우플레이크|DDOG 데이터독|TEAM 아틀라시안|TWLO 트윌리오|OKTA 옥타|GTLB 깃랩|SHOP 쇼피파이|APP 앱러빈|PYPL 페이팔|SOFI 소파이|MELI 메르카도리브레|EBAY 이베이|ZM 줌|TTWO 테이크투|DKNG 드래프트킹스|GME 게임스톱|AMC AMC 엔터테인먼트|NKE 나이키|WEN 웬디스|' +
+    'HIMS 힘스앤허스|MRNA 모더나|TWST 트위스트 바이오사이언스|ISRG 인튜이티브 서지컬|TEM 템퍼스 AI|OSCR 오스카 헬스|RIVN 리비안|RKLB 로켓랩|ASTS AST 스페이스모바일|LUNR 인튜이티브 머신스|RDW 레드와이어|FLY 파이어플라이 에어로스페이스|USAR USA 레어어스|BE 블룸에너지|VST 비스트라|OKLO 오클로|FLNC 플루언스 에너지|BX 블랙스톤|' +
+    'LITE 루멘텀|COHR 코히런트|CIEN 시에나|CRDO 크레도|AAOI 어플라이드 옵토일렉트로닉스|GLW 코닝|TER 테라다인|ALAB 아스테라 랩스|VRT 버티브|HPE HP 엔터프라이즈|ON 온세미|AXTI AXT|AEHR 에어 테스트 시스템즈|POET POET 테크놀로지스|APLD 어플라이드 디지털|PENG 펭귄 솔루션스|TTMI TTM 테크놀로지스|SIMO 실리콘모션|TSEM 타워 세미컨덕터|ROK 로크웰 오토메이션|CGNX 코그넥스|OUST 아우스터|ONDS 온다스|BB 블랙베리|BIRD 스마트버드|SHAZ 샤론AI|BOT 로보스트래티지|GPRO 고프로',
+  '한국 주식': 'SMSN 삼성전자|SKHX SK하이닉스|HYUNDAI 현대차|SKHY SK하이닉스 (미국 상장 ADS)|LGELECTRONICS LG전자|NAVER 네이버',
+  '해외 주식': 'TSM TSMC|ASML ASML|ARM Arm (암 홀딩스)|BABA 알리바바|TCNT 텐센트|XIAOMI 샤오미|SOFTBANK 소프트뱅크그룹|SONY 소니|KIOXIA 키옥시아|NOK 노키아|UMC UMC|MINIMAX 미니맥스|ZHIPU 즈푸 AI|GIGADEV 기가디바이스|CXMT 창신메모리 (CXMT)|UNITREE 유니트리|SHEIN 쉬인|POPMART 팝마트|ZHONGJI 중지쉬촹 (이노라이트)',
+  'ETF': 'QQQ 나스닥100 ETF (QQQ)|SPY S&P 500 ETF (SPY)|IWM 러셀2000 ETF (IWM)|SMH 반도체 ETF (SMH)|DRAM 메모리 반도체 ETF|IGV 소프트웨어 ETF|MAGS 매그니피센트7 ETF|NCLD 네오클라우드 ETF|LYTE 광학·광통신 ETF|XLE 에너지 ETF|XBI 바이오 ETF|URNM 우라늄 광산 ETF|USO 원유 ETF (USO)|TLT 미국 장기국채 ETF|EWY 한국 ETF (EWY)|EWJ 일본 ETF (EWJ)|EWT 대만 ETF (EWT)|EWZ 브라질 ETF (EWZ)|KSTR 중국 과창판50 ETF',
+  '레버리지 ETF': 'TQQQ 나스닥100 3배|SQQQ 나스닥100 −3배 (인버스)|SOXL 반도체 3배|SOXS 반도체 −3배 (인버스)|KORU 한국 3배|TMF 미국 장기국채 3배|UVXY VIX 선물 1.5배|TSLL 테슬라 2배|NVDL 엔비디아 2배|MSTU 스트래티지 2배|MUU 마이크론 2배|SNXX 샌디스크 2배|CSOPSAMSUNG2L 삼성전자 2배 (홍콩 CSOP)|CSOPSKHYNIX2L SK하이닉스 2배 (홍콩 CSOP)',
+  '원자재': 'GOLD 금|SILVER 은|PLATINUM 백금|PALLADIUM 팔라듐|COPPER 구리|CL WTI 원유|BRENTOIL 브렌트유|NATGAS 천연가스|HO 디젤 (경유)',
+  '외환·금리': 'JPY 달러/엔|EUR 유로/달러|GBP 파운드/달러|2Y 미국 2년 국채 금리|10Y 미국 10년 국채 금리|30Y 미국 30년 국채 금리|USBOND 미국 국채',
+  '상장 전 기업': 'OAI 오픈AI|ANTH 앤트로픽|OURA 오우라',
+  '크립토 지수': 'TOTAL2 코인 시가총액 (비트코인 제외)|OTHERS 알트코인 시가총액 (상위 10개 제외)|BTCD 비트코인 도미넌스|BVIV 비트코인 변동성 지수',
+};
+const NAMES = {};
+for (const [group, list] of Object.entries(NAME_TABLE)) for (const it of list.split('|')) { const i = it.indexOf(' '); NAMES[it.slice(0, i)] = { name: it.slice(i + 1), group }; }
+// 거래소마다 티커가 다른 같은 종목 → 기준 티커. 같은 종목은 Hyperliquid(xyz 먼저) 것 하나만 보여 줘요.
+const ALIAS = { SAMSUNG: 'SMSN', SKHYNIX: 'SKHX', XAU: 'GOLD', XAG: 'SILVER', XCU: 'COPPER', XPT: 'PLATINUM', XPD: 'PALLADIUM', BZ: 'BRENTOIL', NG: 'NATGAS', US100: 'XYZ100', USTECH: 'XYZ100', US500: 'SP500', PURR: 'PURRDAT', ANTHROPIC: 'ANTH', OPENAI: 'OAI' };
+const KRX = new Set(['KR200', 'SMSN', 'SKHX', 'HYUNDAI', 'LGELECTRONICS', 'NAVER']);
 const IV_MS = { '1m': 6e4, '5m': 3e5, '15m': 9e5, '1h': 36e5, '4h': 144e5, '1d': 864e5 };
 
 // ───────────────────────── 도구 ─────────────────────────
 const $ = id => document.getElementById(id);
-const tick = s => s.replace(/^xyz:/, '');
+const tick = s => s.replace(/^[a-z]+:/, '');   // 'xyz:NVDA' → 'NVDA'
+const isOkx = c => c.startsWith('okx:');
+const dexOf = c => isOkx(c) ? 'okx' : c.includes(':') ? c.slice(0, c.indexOf(':')) : '';
+const canon = t => ALIAS[t] || t;
 const pxDec = p => { if (!isFinite(p) || p <= 0) return 2; return Math.min(6, Math.max(0, 5 - Math.floor(Math.log10(p)))); };
 const fPx = p => isFinite(p) && p > 0 ? p.toLocaleString('en-US', { minimumFractionDigits: pxDec(p), maximumFractionDigits: pxDec(p) }) : '–';
 const fUsd = (v, sign) => { if (!isFinite(v)) return '–'; const s = Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return (sign ? (v > 0 ? '+' : v < 0 ? '−' : '') : (v < 0 ? '−' : '')) + s; };
@@ -461,6 +483,29 @@ function toast(html, ms = 4200) {
   const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html;
   $('toasts').appendChild(el); setTimeout(() => el.remove(), ms);
 }
+
+// ───────────────────────── 종목 목록 ─────────────────────────
+// 거래소에서 종목 목록을 받아 만들어요. 받기 전에는 지난번에 저장해 둔 목록(없으면 기본 17개)을 써요.
+const MARKETS = [];   // 종목 고르기 목록
+const BY_COIN = {};   // 코인 id → 종목. 목록에서 빠진 종목도 지우지 않아서, 예전 포지션 이름이 계속 보여요.
+const info = {};      // coin -> { maxLev, szDec, mark, prev, vol, funding }
+const mids = {};      // coin -> 최근 가격
+const nameOf = c => BY_COIN[c]?.name || tick(c);
+function market(coin, extra) {
+  const t = tick(coin), n = NAMES[t] || NAMES[canon(t)], group = n?.group || '기타';
+  return BY_COIN[coin] = { ...BY_COIN[coin], coin, name: n?.name || t, group, stock: group !== '코인' && group !== '크립토 지수', krx: KRX.has(canon(t)), okx: isOkx(coin), ...extra };
+}
+// rows: [{ c: 코인 id, l: 최대 레버리지, d: 수량 소수 자리, v: 24시간 거래대금, k: OKX 계약 1개 크기 }]
+function setMarkets(rows, at) {
+  const first = new Map(BASE.map((c, i) => [c, i]));
+  const list = rows.map(r => { info[r.c] = { ...info[r.c], maxLev: r.l, szDec: r.d }; return market(r.c, { v: r.v || 0, ...(r.k ? { ct: r.k } : {}) }); });
+  list.sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || (first.get(a.coin) ?? 999) - (first.get(b.coin) ?? 999) || b.v - a.v);
+  MARKETS.splice(0, MARKETS.length, ...list);
+  if (at) try { localStorage.setItem('mock24.mkts', JSON.stringify({ ...at, rows })); } catch (e) {}
+}
+BASE.forEach(c => { market(c); info[c] = { maxLev: CRYPTO.includes(c) ? 20 : 10, szDec: 3 }; MARKETS.push(BY_COIN[c]); });
+let mktCache = null;
+try { mktCache = JSON.parse(localStorage.getItem('mock24.mkts')); if (mktCache?.rows?.length) setMarkets(mktCache.rows); else mktCache = null; } catch (e) { mktCache = null; }
 
 // ───────────────────────── 저장 ─────────────────────────
 // balance = 지갑 현금. 교차 포지션 전부의 담보예요. 격리 증거금은 지갑에서 빠져나가 그 포지션에만 묶여요.
@@ -511,28 +556,59 @@ persist();
 let catching = true;   // 자리 비운 시간을 되짚는 동안에는 실시간 판정을 쉬어요 (같은 일을 두 번 처리하지 않게)
 
 // ───────────────────────── 시장 정보 ─────────────────────────
-const info = {};   // coin -> { maxLev, szDec, mark, prev, vol, funding, oracle }
-const mids = {};   // coin -> 최근 가격
-MARKETS.forEach(m => info[m.coin] = { maxLev: m.stock ? 10 : 20, szDec: 3 });
-
 async function post(body) {
   const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   return r.json();
 }
-async function loadMeta() {
-  const [main, xyz] = await Promise.all([post({ type: 'metaAndAssetCtxs' }), post({ type: 'metaAndAssetCtxs', dex: 'xyz' })]);
-  for (const [meta, ctxs] of [main, xyz]) {
-    meta.universe.forEach((u, i) => {
-      if (!BY_COIN[u.name]) return;
-      const c = ctxs[i] || {};
-      info[u.name] = { maxLev: u.maxLeverage, szDec: u.szDecimals, mark: +c.markPx, prev: +c.prevDayPx, vol: +c.dayNtlVlm, funding: +c.funding, oracle: +c.oraclePx };
+let metaAt = 0;
+// Hyperliquid 거래소별 종목 정보와 가격. 실패한 거래소는 건너뛰어요. 돌려주는 값: { 거래소: [[종목, 상태], …] }
+async function loadMeta(dexes = HL_DEXES) {
+  const res = await Promise.allSettled(dexes.map(d => post(d ? { type: 'metaAndAssetCtxs', dex: d } : { type: 'metaAndAssetCtxs' })));
+  const out = {};
+  res.forEach((r, k) => {
+    if (r.status !== 'fulfilled' || !r.value?.[0]?.universe) return;
+    const [meta, ctxs] = r.value, rows = out[dexes[k]] = meta.universe.map((u, i) => [u, ctxs[i] || {}]);
+    for (const [u, c] of rows) {
+      info[u.name] = { ...info[u.name], maxLev: u.maxLeverage, szDec: u.szDecimals, mark: +c.markPx, prev: +c.prevDayPx, vol: +c.dayNtlVlm, funding: +c.funding, oracle: +c.oraclePx };
       if (+c.markPx) mids[u.name] = +c.markPx;
-    });
+    }
+  });
+  if (dexes.length === HL_DEXES.length) metaAt = Date.now();
+  return out;
+}
+// 종목 목록 만들기: Hyperliquid 코인 6개 + xyz 전부 + para·io·mkts 중 이름을 확인한 종목 + OKX 주식·원자재 선물. 같은 종목은 하나만.
+async function loadMarkets() {
+  const okxFresh = mktCache && Date.now() - (mktCache.okxAt || 0) < 6 * 36e5 && mktCache.rows.some(r => isOkx(r.c));
+  const okxP = okxFresh ? Promise.resolve(null) : okx.instruments().catch(() => null);
+  const hl = await loadMeta(HL_DEXES);
+  if (!hl[''] || !hl.xyz) throw new Error('meta');
+  // OKX가 느리거나 막힌 네트워크에서도 앱이 기다리지 않게: 2.5초 안에 안 오면 먼저 열고, 오면 목록에 더해요
+  const ox = await Promise.race([okxP, new Promise(r => setTimeout(r, 2500))]);
+  buildMarkets(hl, ox);
+  if (ox === undefined) okxP.then(o => { if (o) { buildMarkets(hl, o); renderPicker(true); } });
+}
+function buildMarkets(hl, ox) {
+  const rows = [], seen = new Set();
+  const add = r => { const t = canon(tick(r.c)); if (seen.has(t)) return; seen.add(t); rows.push(r); };
+  BASE.forEach(c => add({ c, l: info[c].maxLev, d: info[c].szDec, v: info[c].vol || 0 }));
+  for (const dex of HL_DEXES) for (const [u, c] of hl[dex] || []) {
+    const t = tick(u.name);
+    if (u.isDelisted || !(+c.markPx) || (dex === '' ? !CRYPTO.includes(t) : dex !== 'xyz' && !NAMES[canon(t)])) continue;
+    add({ c: u.name, l: u.maxLeverage, d: u.szDecimals, v: +c.dayNtlVlm || 0 });
   }
+  // 이번에 못 받은 거래소 종목은 지난번 목록에서 그대로 가져와요
+  const kept = (mktCache?.rows || []).filter(r => isOkx(r.c) ? !ox : !hl[dexOf(r.c)]);
+  for (const r of ox || kept.filter(r => isOkx(r.c))) add(r);
+  for (const r of kept) if (!isOkx(r.c)) add(r);
+  mktCache = { at: Date.now(), okxAt: ox ? Date.now() : mktCache?.okxAt || 0, rows };
+  setMarkets(rows, { at: mktCache.at, okxAt: mktCache.okxAt });
+  if (ox) okx.onTickers(okx.allTk || []);
+  fillWhatIf(); okx.sync();
 }
 async function candles(coin, iv, start, end) {
   if (feed.mode === 'sim') return sim.candles(coin, iv, start, end);
+  if (isOkx(coin)) return okxCandles(coin, iv, start, end);
   const rows = await post({ type: 'candleSnapshot', req: { coin, interval: iv, startTime: Math.floor(start), endTime: Math.floor(end) } });
   return rows.map(r => ({ t: r.t, o: +r.o, h: +r.h, l: +r.l, c: +r.c, v: +r.v }));
 }
@@ -575,18 +651,25 @@ const feed = {
     const run = async () => {
       n++;
       try {
-        const [a, b, book] = await Promise.all([post({ type: 'allMids' }), post({ type: 'allMids', dex: 'xyz' }), post({ type: 'l2Book', coin: cur.coin })]);
+        // 기본·xyz 시장과 지금 보는 종목의 거래소는 매번, 나머지 거래소는 두 번에 한 번 (1분 무게 약 650)
+        const coin = cur.coin, hl = !isOkx(coin), cd = dexOf(coin);
+        const ds = HL_DEXES.filter(d => d === '' || d === 'xyz' || d === cd || n % 2 === 0);
+        const jobs = ds.map(d => d === '' || d === 'xyz' ? post(d ? { type: 'allMids', dex: d } : { type: 'allMids' }) : post({ type: 'allMids', dex: d }).catch(() => ({})));
+        if (hl) jobs.push(post({ type: 'l2Book', coin }));
+        const res = await Promise.all(jobs);
         if (this.mode !== 'poll') return;
-        this.handlers.allMids?.({ mids: { ...a, ...b } });
+        const book = hl ? res.pop() : null;
+        this.handlers.allMids?.({ mids: Object.assign({}, ...res) });
         if (book && book.coin === cur.coin) this.handlers.l2Book?.(book);
-        if (n % 2 === 0) {
-          const end = Date.now(), iv = cur.iv, coin = cur.coin;
+        if (hl && n % 2 === 0) {
+          const end = Date.now(), iv = cur.iv;
           const rows = await post({ type: 'candleSnapshot', req: { coin, interval: iv, startTime: end - IV_MS[iv] * 2, endTime: end } });
           rows.forEach(r => this.handlers.candle?.(r));
         }
-        if (n % 6 === 0) {
-          await loadMeta(); const i = info[cur.coin];
-          this.handlers.activeAssetCtx?.({ coin: cur.coin, ctx: { markPx: i.mark, prevDayPx: i.prev, dayNtlVlm: i.vol, funding: i.funding } });
+        if (n % 24 === 0) await loadMeta(HL_DEXES); else if (hl && n % 6 === 0) await loadMeta([cd]);
+        if (hl && n % 6 === 0 && coin === cur.coin) {
+          const i = info[coin];
+          this.handlers.activeAssetCtx?.({ coin, ctx: { markPx: i.mark, prevDayPx: i.prev, dayNtlVlm: i.vol, funding: i.funding } });
         }
         errs = 0; $('netBanner').hidden = true;
       } catch (e) { if (++errs >= 3) this.fail(); }
@@ -597,18 +680,184 @@ const feed = {
   fail() { $('netBanner').hidden = false; },
 };
 function setFeed(st) {
-  const p = $('feedPill'); p.className = 'pill' + (st === 'live' || st === 'poll' ? ' live' : st === 'sim' ? ' sim' : '');
-  $('feedTxt').textContent = st === 'live' ? '실시간 시세' : st === 'poll' ? '실제 시세 (2.5초마다)' : st === 'sim' ? '연습 시세 (가짜)' : '연결 중';
+  feed.st = st;
   if (st === 'live' || st === 'poll') $('netBanner').hidden = true;
-  renderTrades();
+  renderPill(); renderTrades();
 }
+// 위쪽 연결 표시: 지금 보는 종목의 거래소(Hyperliquid 또는 OKX) 연결 상태
+function renderPill() {
+  const o = isOkx(cur.coin) && feed.mode !== 'sim', st = o ? ({ live: 'live', poll: 'poll' }[okx.st] || 'wait') : feed.st;
+  $('feedPill').className = 'pill' + (st === 'live' || st === 'poll' ? ' live' : st === 'sim' ? ' sim' : '');
+  $('feedTxt').textContent = (st === 'live' ? '실시간 시세' : st === 'poll' ? '실제 시세 (2.5초마다)' : st === 'sim' ? '연습 시세 (가짜)' : '연결 중') + (o && st !== 'wait' ? ' · OKX' : '');
+}
+
+// ───────────────────────── OKX 시세 ─────────────────────────
+// OKX 주식·원자재 선물(USDT). 공개 자료라 키가 필요 없어요. 지금 보는 종목·내 포지션·순위에 있는 포지션 종목만 실시간으로 받아요.
+// 웹소켓이 막히면 2.5초마다 직접 물어봐요. 요청 한도(시세 2초 20번, 봉 2초 40번) 안쪽.
+const OKX_BAR = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1Dutc' };
+const okxId = c => tick(c) + '-USDT-SWAP';
+const okxCoin = id => 'okx:' + String(id).replace(/-USDT-SWAP$/, '');
+const okxCt = c => BY_COIN[c]?.ct || 1;   // 계약 1개 = 주식 몇 주(온스·배럴)
+async function okxGet(path) {
+  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
+  try {
+    const r = await fetch(OKX + path, { signal: ctl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json(); if (j.code !== '0') throw new Error(j.msg || 'okx ' + j.code);
+    return j.data;
+  } finally { clearTimeout(to); }
+}
+// 봉: 최근 1440개는 candles(한 번에 300개), 더 오래된 건 history-candles(100개)로 거슬러 올라가요
+async function okxCandles(coin, iv, start, end) {
+  const ms = IV_MS[iv], got = new Map();
+  let after = Math.floor(end) + 1, hist = false;
+  for (let i = 0; i < 25; i++) {
+    const rows = await okxGet(`market/${hist ? 'history-candles' : 'candles'}?instId=${okxId(coin)}&bar=${OKX_BAR[iv]}&limit=${hist ? 100 : 300}&after=${after}`);
+    if (!rows.length) { if (hist) break; hist = true; continue; }
+    for (const r of rows) got.set(+r[0], { t: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[6] });
+    after = +rows.at(-1)[0];
+    if (after <= start) break;
+  }
+  return [...got.values()].filter(k => k.t + ms > start && k.t <= end).sort((a, b) => a.t - b.t);
+}
+const okx = {
+  st: 'off', ws: null, fails: 0, subs: new Set(), fk: null, pt: null, n: 0, errs: 0, tkAt: 0, lastTid: 0, ping: null, allTk: null,
+  // 주식(3)·원자재(4) 종목 목록과 전체 시세(거래대금 순서용)
+  async instruments() {
+    const [ins, tks] = await Promise.all([okxGet('public/instruments?instType=SWAP'), okxGet('market/tickers?instType=SWAP')]);
+    this.allTk = tks; this.tkAt = Date.now();
+    const vol = new Map(tks.map(t => [t.instId, +t.volCcy24h * +t.last || 0]));
+    const dec = x => { const z = +x.lotSz * +x.ctVal; return z > 0 ? clamp(Math.ceil(-Math.log10(z) - 1e-9), 0, 6) : 2; };
+    return ins.filter(x => (x.instCategory === '3' || x.instCategory === '4') && x.state === 'live' && x.instId.endsWith('-USDT-SWAP'))
+      .map(x => ({ c: okxCoin(x.instId), l: +x.lever || 10, d: dec(x), v: vol.get(x.instId) || 0, k: +x.ctVal || 1 }))
+      .sort((a, b) => b.v - a.v);
+  },
+  need() {
+    const s = new Set();
+    if (isOkx(cur.coin)) s.add(cur.coin);
+    for (const p of S.positions) if (isOkx(p.coin)) s.add(p.coin);
+    for (const r of board.rows.values()) for (const p of r.state?.pos || []) if (isOkx(p.c)) s.add(p.c);
+    return s;
+  },
+  focusArgs(c) { const instId = okxId(c); return [{ channel: 'books5', instId }, { channel: 'trades', instId }, { channel: 'mark-price', instId }]; },
+  send(op, args) { if (args.length && this.ws?.readyState === 1) this.ws.send(JSON.stringify({ op, args })); },
+  // 필요한 종목이 바뀌면 구독을 맞춰요 (화면이 바뀔 때마다 불러도 돼요)
+  sync() {
+    if (feed.mode === 'sim') return this.stop();
+    const want = this.need(), f = isOkx(cur.coin) ? cur.coin : null;
+    if (!want.size) return this.stop();
+    const add = [...want].filter(c => !this.subs.has(c)), del = [...this.subs].filter(c => !want.has(c));
+    add.forEach(c => this.subs.add(c)); del.forEach(c => this.subs.delete(c));
+    let kick = add.length > 0;
+    if (f !== this.fk) {
+      if (this.fk) this.send('unsubscribe', this.focusArgs(this.fk));
+      this.fk = f; this.lastTid = 0; kick = true;
+      if (f) { this.send('subscribe', this.focusArgs(f)); if (info[f]) info[f].markAt = 0; }
+    }
+    this.send('subscribe', add.map(c => ({ channel: 'tickers', instId: okxId(c) })));
+    this.send('unsubscribe', del.map(c => ({ channel: 'tickers', instId: okxId(c) })));
+    if (this.st === 'off') { this.st = 'wait'; this.fails = 0; this.open(); clearInterval(this.pt); this.n = 0; this.pt = setInterval(() => this.run(), 2500); }
+    if (kick) this.run(true);   // 새 종목은 웹소켓을 기다리지 않고 바로 한 번 받아요
+  },
+  open() {
+    this.closeWs();
+    let ws; try { ws = this.ws = new WebSocket(OKX_WS); } catch (e) { return this.wsFail(); }
+    const guard = setTimeout(() => { if (ws.readyState !== 1) ws.close(); }, 9000);
+    ws.onopen = () => {
+      clearTimeout(guard); this.st = 'live'; this.fails = 0; renderPill();
+      this.send('subscribe', [...this.subs].map(c => ({ channel: 'tickers', instId: okxId(c) })).concat(this.fk ? this.focusArgs(this.fk) : []));
+      clearInterval(this.ping); this.ping = setInterval(() => { if (ws.readyState === 1) ws.send('ping'); }, 20000);
+    };
+    ws.onmessage = e => this.onMsg(e.data);
+    ws.onclose = () => { clearTimeout(guard); clearInterval(this.ping); if (this.ws !== ws) return; this.ws = null; this.wsFail(); };
+    ws.onerror = () => {};
+  },
+  closeWs() { const ws = this.ws; this.ws = null; clearInterval(this.ping); try { ws && (ws.onclose = null, ws.close()); } catch (e) {} },
+  // 웹소켓이 두 번 실패하면 직접 물어보는 방식으로 바꿔요
+  wsFail() {
+    if (this.st === 'off') return;
+    if (++this.fails >= 2) { this.st = 'poll'; renderPill(); renderTrades(); this.run(true); return; }
+    this.st = 'wait'; renderPill(); setTimeout(() => { if (this.st === 'wait') this.open(); }, 2000);
+  },
+  stop() { if (this.st === 'off') return; this.st = 'off'; this.closeWs(); clearInterval(this.pt); this.subs.clear(); this.fk = null; },
+  onMsg(raw) {
+    if (raw === 'pong') return;
+    let m; try { m = JSON.parse(raw); } catch (e) { return; }
+    const ch = m.arg?.channel, d = m.data; if (!ch || !d?.length) return;
+    if (ch === 'tickers') this.onTickers(d);
+    else if (ch === 'books5') this.onBook(okxCoin(m.arg.instId), d[0]);
+    else if (ch === 'trades') this.onTrades(okxCoin(m.arg.instId), d);
+    else if (ch === 'mark-price') { const c = okxCoin(m.arg.instId), i = info[c]; if (i && +d[0].markPx) { i.mark = +d[0].markPx; i.markAt = Date.now(); if (c === cur.coin) renderQuote(); } }
+  },
+  onTickers(arr) {
+    let any = false;
+    for (const t of arr) {
+      const c = okxCoin(t.instId), last = +t.last; if (!BY_COIN[c] || !last) continue;
+      const i = info[c] ||= { maxLev: 10, szDec: 2 };
+      mids[c] = last; i.prev = +t.open24h; i.vol = +t.volCcy24h * last; i.funding = NaN;
+      if (!(Date.now() - (i.markAt || 0) < 15000)) i.mark = last;   // 표시가격 소식이 끊기면 마지막 체결가로
+      any = true;
+    }
+    if (any) { onPrices(); if (isOkx(cur.coin)) renderQuote(); }
+  },
+  onBook(c, b) {
+    if (c !== cur.coin || !b) return;
+    const ct = okxCt(c), lv = a => a.map(([px, sz]) => ({ px, sz: +sz * ct }));
+    feed.handlers.l2Book?.({ coin: c, levels: [lv(b.bids), lv(b.asks)] });
+  },
+  onTrades(c, arr) {
+    if (c !== cur.coin) return;
+    const ct = okxCt(c), ms = IV_MS[cur.iv];
+    const list = arr.filter(t => +t.tradeId > this.lastTid).sort((a, b) => +a.ts - +b.ts || +a.tradeId - +b.tradeId);
+    if (!list.length) return;
+    this.lastTid = Math.max(this.lastTid, ...list.map(t => +t.tradeId));
+    feed.handlers.trades?.(list.map(t => ({ coin: c, side: t.side === 'buy' ? 'B' : 'A', px: t.px, sz: +t.sz * ct, time: +t.ts })));
+    for (const t of list) feed.handlers.candle?.({ t: Math.floor(+t.ts / ms) * ms, s: c, i: cur.iv, o: t.px, h: t.px, l: t.px, c: t.px, _tick: true });
+  },
+  // 2.5초마다: 웹소켓이 살아 있으면 봉 맞추기(10초)와 빠진 시세만, 막혔으면 시세·호가·체결까지 직접 받아요
+  async run(now) {
+    if (this.st === 'off') return;
+    const n = now ? this.n : ++this.n, f = isOkx(cur.coin) ? cur.coin : null, poll = this.st === 'poll' || this.st === 'down';
+    const others = [...this.subs].filter(c => c !== f && (poll || !mids[c]));
+    const jobs = [];
+    if (f && poll) {
+      jobs.push(okxGet('market/ticker?instId=' + okxId(f)).then(d => this.onTickers(d)));
+      jobs.push(okxGet(`market/books?instId=${okxId(f)}&sz=10`).then(d => this.onBook(f, d[0])));
+      if (now || n % 2 === 0) jobs.push(okxGet(`market/trades?instId=${okxId(f)}&limit=30`).then(d => this.onTrades(f, d)));
+    }
+    if (f && (now || n % 4 === 0)) {
+      const iv = cur.iv;
+      jobs.push(okxGet(`market/candles?instId=${okxId(f)}&bar=${OKX_BAR[iv]}&limit=2`).then(d => {
+        for (const r of d.slice().reverse()) feed.handlers.candle?.({ t: +r[0], s: f, i: iv, o: r[1], h: r[2], l: r[3], c: r[4] });
+      }));
+    }
+    if (others.length && (now || n % 4 === 0)) {
+      if (others.length > 12) jobs.push(okxGet('market/tickers?instType=SWAP').then(d => { this.tkAt = Date.now(); this.onTickers(d); }));
+      else others.forEach(c => jobs.push(okxGet('market/ticker?instId=' + okxId(c)).then(d => this.onTickers(d))));
+    }
+    if (!jobs.length) return;
+    try {
+      await Promise.all(jobs);
+      if (this.st === 'down') { this.st = 'poll'; renderPill(); }
+      this.errs = 0;
+    } catch (e) {
+      if (++this.errs === 3 && poll) { this.st = 'down'; renderPill(); toast('OKX 시세를 불러오지 못하고 있어요. 잠시 뒤에 다시 시도해요.'); }
+    }
+  },
+  // 종목 고르기를 열면 OKX 전체 시세를 한 번 받아요 (1분에 한 번까지)
+  refreshAll() {
+    if (feed.mode === 'sim' || Date.now() - this.tkAt < 60e3) return;
+    this.tkAt = Date.now();
+    okxGet('market/tickers?instType=SWAP').then(d => this.onTickers(d)).catch(() => { this.tkAt = 0; });
+  },
+};
 
 // ───────────────────────── 연습용 가짜 시세 ─────────────────────────
 const sim = {
   timer: null, seedPx: { BTC: 83000, ETH: 2500, SOL: 110, XRP: 1.4, DOGE: 0.085, HYPE: 85, 'xyz:XYZ100': 30900, 'xyz:SP500': 7800, 'xyz:KR200': 1035, 'xyz:SMSN': 193, 'xyz:SKHX': 1220, 'xyz:HYUNDAI': 210, 'xyz:NVDA': 230, 'xyz:TSLA': 380, 'xyz:AAPL': 336, 'xyz:GOLD': 4195, 'xyz:CL': 62 },
-  vol(coin) { return BY_COIN[coin].stock ? 0.0006 : 0.0012; },
+  vol(coin) { return BY_COIN[coin]?.stock ? 0.0006 : 0.0012; },
   start() {
-    MARKETS.forEach(m => { if (!mids[m.coin]) mids[m.coin] = this.seedPx[m.coin]; const i = info[m.coin]; i.mark = mids[m.coin]; i.prev = i.prev || mids[m.coin] * (1 - (Math.random() - .5) * .04); i.vol = i.vol || 0; i.funding = 0; });
+    MARKETS.forEach(m => { if (!mids[m.coin]) mids[m.coin] = this.seedPx[m.coin] || 100; const i = info[m.coin] ||= { maxLev: 10, szDec: 2 }; i.mark = mids[m.coin]; i.prev = i.prev || mids[m.coin] * (1 - (Math.random() - .5) * .04); i.vol = i.vol || 0; i.funding = 0; });
     clearInterval(this.timer);
     this.timer = setInterval(() => this.step(), 1000);
   },
@@ -622,11 +871,11 @@ const sim = {
     feed.handlers.trades?.([{ coin: c, side: Math.random() < .5 ? 'B' : 'A', px: String(p), sz: String((Math.random() * 2 + .1) * (50 / p)), time: now }]);
     feed.handlers.activeAssetCtx?.({ coin: c, ctx: { markPx: String(p), prevDayPx: String(info[c].prev), dayNtlVlm: '0', funding: '0' } });
     const ivMs = IV_MS[cur.iv], t = Math.floor(now / ivMs) * ivMs;
-    feed.handlers.candle?.({ t, s: c, i: cur.iv, o: String(p), h: String(p), l: String(p), c: String(p), v: '0', _sim: true });
+    feed.handlers.candle?.({ t, s: c, i: cur.iv, o: String(p), h: String(p), l: String(p), c: String(p), v: '0', _tick: true });
   },
   candles(coin, iv, start, end) {
     const ms = IV_MS[iv], out = [];
-    let p = mids[coin] || this.seedPx[coin];
+    let p = mids[coin] || this.seedPx[coin] || 100;
     const v = this.vol(coin) * Math.sqrt(ms / 1000);
     for (let t = Math.floor(end / ms) * ms; t >= start; t -= ms) {
       const c = p, o = c * Math.exp((Math.random() - .5) * 2 * v);
@@ -638,7 +887,7 @@ const sim = {
   },
 };
 function goSim() {
-  feed.stop(); feed.mode = 'sim';
+  feed.stop(); feed.mode = 'sim'; okx.stop();
   // 가짜 가격이 진짜 기록을 청산하지 않도록, 연습 시세에서는 저장되지 않는 별도 계좌를 써요
   S = freshState(); S.sim = true; catching = false;
   $('netBanner').hidden = true; setFeed('sim'); sim.start(); selectMarket(cur.coin, true); renderAll();
@@ -690,21 +939,25 @@ let curSubs = [];
 
 async function selectMarket(coin, force) {
   if (!BY_COIN[coin]) coin = 'BTC';
-  if (coin === cur.coin && !force && curSubs.length) return;
-  curSubs.forEach(s => feed.unsub(s));
-  cur.coin = coin; cur.book = null; cur.lastBar = null; cur.last = mids[coin] ?? NaN;
+  if (coin === cur.coin && !force && cur.ready) return;
+  curSubs.forEach(s => feed.unsub(s)); curSubs = [];
+  cur.coin = coin; cur.book = null; cur.lastBar = null; cur.last = mids[coin] ?? NaN; cur.ready = true; tradeBuf.length = 0;
   try { localStorage.setItem('mock24.coin', coin); } catch (e) {}
   const m = BY_COIN[coin];
-  $('mktName').textContent = m.name; $('mktTk').textContent = tick(coin);
+  $('mktName').textContent = m.name; $('mktTk').textContent = tick(coin) + (m.okx ? ' · OKX' : '');
   document.title = m.name + ' · 24시 모의선물';
   $('asks').innerHTML = ''; $('bids').innerHTML = ''; $('tradeRows').innerHTML = '';
-  syncLeverage(); renderQuote(); renderPicker();
-  $('closedNote').hidden = !m.stock;
-  $('closedNote').textContent = m.krx
-    ? '한국 정규장이 닫힌 시간(야간·주말)에는 원래 주식 가격 대신 거래자들이 만든 가격으로 움직여요. 월요일 개장 때 실제 가격 쪽으로 다시 맞춰질 수 있어요.'
-    : '기준이 되는 원래 시장(미국 증시·상품 시장)이 닫힌 시간(주말 등)에는 거래자들이 만든 가격으로 움직여요. 다시 열릴 때 실제 가격 쪽으로 맞춰질 수 있어요.';
-  curSubs = [{ type: 'l2Book', coin }, { type: 'trades', coin }, { type: 'activeAssetCtx', coin }, { type: 'candle', coin, interval: cur.iv }];
-  curSubs.forEach(s => feed.sub(s));
+  syncLeverage(); renderQuote(); renderPicker(true); renderPill(); renderTrades();
+  $('closedNote').hidden = !m.stock && !m.okx;
+  $('closedNote').textContent = (m.krx
+    ? '한국 정규장이 닫힌 시간(야간·주말)에는 원래 주식 가격 대신 거래자들이 만든 가격으로 움직여요. 개장 때 실제 가격 쪽으로 다시 맞춰질 수 있어요.'
+    : m.stock ? '기준이 되는 원래 시장(증시·상품 시장)이 닫힌 시간(주말·야간)에는 거래자들이 만든 가격으로 움직여요. 다시 열릴 때 실제 가격 쪽으로 맞춰질 수 있어요.' : '')
+    + (m.okx ? ' 이 종목은 OKX 거래소의 선물 시세를 따라가요.' : '');
+  okx.sync();
+  if (!m.okx) {
+    curSubs = [{ type: 'l2Book', coin }, { type: 'trades', coin }, { type: 'activeAssetCtx', coin }, { type: 'candle', coin, interval: cur.iv }];
+    curSubs.forEach(s => feed.sub(s));
+  }
   await loadCandles();
   drawPriceLines();
 }
@@ -721,15 +974,16 @@ async function loadCandles() {
 }
 function setInterval_(iv) {
   if (iv === cur.iv) return;
-  feed.unsub({ type: 'candle', coin: cur.coin, interval: cur.iv });
+  const hl = !isOkx(cur.coin);
+  if (hl) feed.unsub({ type: 'candle', coin: cur.coin, interval: cur.iv });
   cur.iv = iv;
-  curSubs = curSubs.filter(s => s.type !== 'candle'); const s = { type: 'candle', coin: cur.coin, interval: iv }; curSubs.push(s); feed.sub(s);
+  if (hl) { curSubs = curSubs.filter(s => s.type !== 'candle'); const s = { type: 'candle', coin: cur.coin, interval: iv }; curSubs.push(s); feed.sub(s); }
   document.querySelectorAll('#ivSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.iv === iv));
   loadCandles();
 }
 
 // ───────────────────────── 실시간 자료 처리 ─────────────────────────
-feed.on('allMids', d => { for (const [k, v] of Object.entries(d.mids)) if (BY_COIN[k]) mids[k] = +v; onPrices(); });
+feed.on('allMids', d => { for (const [k, v] of Object.entries(d.mids)) mids[k] = +v; onPrices(); });
 feed.on('activeAssetCtx', d => {
   if (d.coin !== cur.coin) return; const c = d.ctx, i = info[d.coin];
   i.mark = +c.markPx; i.prev = +c.prevDayPx; i.vol = +c.dayNtlVlm; i.funding = +c.funding;
@@ -743,8 +997,9 @@ feed.on('trades', arr => {
 feed.on('candle', k => {
   if (k.s !== cur.coin || k.i !== cur.iv || !series) return;
   let bar = toBar({ t: k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c });
-  if (k._sim && cur.lastBar && cur.lastBar.time === bar.time) bar = { ...cur.lastBar, high: Math.max(cur.lastBar.high, bar.close), low: Math.min(cur.lastBar.low, bar.close), close: bar.close };
-  else if (k._sim && cur.lastBar) bar.open = cur.lastBar.close;
+  // _tick = 체결 하나로 지금 봉을 이어 그려요 (연습 시세·OKX 체결)
+  if (k._tick && cur.lastBar && cur.lastBar.time === bar.time) bar = { ...cur.lastBar, high: Math.max(cur.lastBar.high, bar.close), low: Math.min(cur.lastBar.low, bar.close), close: bar.close };
+  else if (k._tick && cur.lastBar) bar.open = cur.lastBar.close;
   if (cur.lastBar && bar.time < cur.lastBar.time) return;
   series.update(bar); cur.lastBar = bar; cur.last = bar.close; renderQuote();
 });
@@ -775,24 +1030,44 @@ function renderBook() {
   if (ba && bb) { $('bookMid').textContent = fPx((ba + bb) / 2); $('spread').textContent = '스프레드 ' + fPx(ba - bb); }
 }
 function renderTrades() {
-  if (feed.mode === 'poll' && !tradeBuf.length) { $('tradeRows').innerHTML = '<div class="empty" style="font-family:var(--font-ui)">이 네트워크에서는 실시간 연결이 막혀 있어 체결 목록을 보여 줄 수 없어요. 가격과 호가는 2.5초마다 갱신돼요.</div>'; return; }
+  if (feed.mode === 'poll' && !isOkx(cur.coin) && !tradeBuf.length) { $('tradeRows').innerHTML = '<div class="empty" style="font-family:var(--font-ui)">이 네트워크에서는 실시간 연결이 막혀 있어 체결 목록을 보여 줄 수 없어요. 가격과 호가는 2.5초마다 갱신돼요.</div>'; return; }
   const sd = info[cur.coin].szDec;
   $('tradeRows').innerHTML = tradeBuf.map(t => `<div class="row"><span class="${t.side === 'B' ? 'up' : 'down'}">${fPx(+t.px)}</span><span>${(+t.sz).toFixed(sd)}</span><span class="muted">${fHms(t.time)}</span></div>`).join('');
 }
-function renderPicker() {
-  const groups = [...new Set(MARKETS.map(m => m.group))];
-  $('picker').innerHTML = groups.map(g => `<h4>${g}</h4>` + MARKETS.filter(m => m.group === g).map(m => {
-    const p = mids[m.coin], pv = info[m.coin].prev, ch = p && pv ? p / pv - 1 : NaN;
-    return `<button role="option" data-coin="${m.coin}" aria-current="${m.coin === cur.coin}"><span class="nm">${m.name}<small>${tick(m.coin)} · 최대 ${info[m.coin].maxLev}배</small></span><span class="px num">${fPx(p)}</span><span class="ch num ${cls(ch)}">${fPct(ch)}</span></button>`;
-  }).join('')).join('');
+let pickDrawn = 0;
+const squash = s => s.toLowerCase().replace(/[\s·()&/-]/g, '');
+function pickMatches() {
+  const q = squash($('pickQ').value);
+  return q ? MARKETS.filter(m => squash(m.name + tick(m.coin) + m.group + (m.okx ? 'okx' : '')).includes(q)) : MARKETS;
+}
+// 목록은 1초에 한 번까지만 다시 그려요 (종목이 200개가 넘어요)
+function renderPicker(force) {
+  if ($('picker').hidden) return;
+  const t = performance.now(); if (!force && t - pickDrawn < 1000) return; pickDrawn = t;
+  const list = pickMatches(), okN = MARKETS.filter(m => m.okx).length;
+  $('pickInfo').textContent = `${MARKETS.length}개 종목 · Hyperliquid ${MARKETS.length - okN} · OKX ${okN}` + (list.length < MARKETS.length ? ` · 찾은 종목 ${list.length}개` : '');
+  $('pickList').innerHTML = GROUPS.map(g => {
+    const ms = list.filter(m => m.group === g); if (!ms.length) return '';
+    return `<h4>${g} <span class="muted">${ms.length}</span></h4>` + ms.map(m => {
+      const p = mids[m.coin], i = info[m.coin] || {}, ch = p && i.prev ? p / i.prev - 1 : NaN;
+      return `<button role="option" data-coin="${m.coin}" aria-current="${m.coin === cur.coin}"><span class="nm">${m.name}<small>${m.name === tick(m.coin) ? '' : tick(m.coin) + ' · '}최대 ${i.maxLev}배${m.okx ? ' · OKX' : ''}</small></span><span class="px num">${fPx(p)}</span><span class="ch num ${cls(ch)}">${fPct(ch)}</span></button>`;
+    }).join('');
+  }).join('') || '<div class="empty">찾는 종목이 없어요. 이름이나 티커(예: 삼성, NVDA)로 찾아보세요.</div>';
+}
+function openPicker(open) {
+  $('picker').hidden = !open; $('mktBtn').setAttribute('aria-expanded', open);
+  if (!open) return;
+  renderPicker(true); okx.refreshAll();
+  if (feed.mode !== 'sim' && Date.now() - metaAt > 120e3) loadMeta(HL_DEXES).then(() => renderPicker(true)).catch(() => {});
+  if (matchMedia('(pointer: fine)').matches) $('pickQ').focus();
 }
 
 // ───────────────────────── 증거금 계산 ─────────────────────────
 // 유지증거금 비율 = 최대 레버리지 기준 초기증거금의 절반 (Hyperliquid 문서 "The maintenance margin is half of the initial margin at max leverage")
-const mmr = coin => 1 / (2 * info[coin].maxLev);
+const mmr = coin => 1 / (2 * (info[coin]?.maxLev || 20));   // 목록에서 빠진 종목은 20배로 봐요
 const posOf = coin => S.positions.find(p => p.coin === coin);
 const upnlAt = (p, px, size = p.size) => (px - p.entry) * size * p.dir;
-const sideName = p => BY_COIN[p.coin].name + ' ' + (p.dir > 0 ? '롱' : '숏');
+const sideName = p => nameOf(p.coin) + ' ' + (p.dir > 0 ? '롱' : '숏');
 const modeName = m => m === 'cross' ? '교차' : '격리';
 function liqPrice(dir, entry, margin, size, coin) {
   const r = mmr(coin), per = margin / size;
@@ -1017,8 +1292,10 @@ async function catchUp() {
   const pay = t => { while (pi < pays.length && pays[pi] <= t) payday(pays[pi++]); };
   const coins = [...new Set(S.positions.map(p => p.coin))];
   if (coins.length && now - from >= 90e3) {
-    const gap = now - from;
-    const iv = gap < 3 * 864e5 ? '1m' : gap < 16 * 864e5 ? '5m' : gap < 200 * 864e5 ? '1h' : '1d';
+    const gap = now - from, D = 864e5;
+    const iv = coins.some(isOkx)
+      ? (gap < D ? '1m' : gap < 5 * D ? '5m' : gap < 15 * D ? '15m' : gap < 60 * D ? '1h' : gap < 240 * D ? '4h' : '1d')   // OKX 봉은 최근 1440개까지 빠르게 받아요
+      : (gap < 3 * D ? '1m' : gap < 16 * D ? '5m' : gap < 200 * D ? '1h' : '1d');
     const at = {}, lastC = {};
     await Promise.all(coins.map(async c => {
       let ks = []; try { ks = await candles(c, iv, from - 60e3, now); } catch (e) {}
@@ -1054,7 +1331,7 @@ function renderPositions() {
     const px = markOf(p.coin), pnl = px ? upnlAt(p, px) : NaN;
     const base = p.mode === 'isolated' ? p.margin : p.size * p.entry / p.lev;
     const mTxt = p.mode === 'isolated' ? fUsd(p.margin) : fUsd(p.size * (px || p.entry) / p.lev);
-    return `<tr><td><b>${BY_COIN[p.coin].name}</b> <span class="muted">${tick(p.coin)}</span></td>
+    return `<tr><td><b>${nameOf(p.coin)}</b> <span class="muted">${tick(p.coin)}${isOkx(p.coin) ? ' · OKX' : ''}</span></td>
       <td><span class="side ${p.dir > 0 ? 'L' : 'S'}">${p.dir > 0 ? '롱' : '숏'} ${p.lev}배</span> <span class="tag">${modeName(p.mode)}</span></td>
       <td>${fUsd(p.size * (px || p.entry))}</td><td>${fPx(p.entry)}</td><td>${fPx(px)}</td>
       <td${p.mode === 'cross' ? ' title="다른 교차 포지션 가격과 지갑 현금이 지금 그대로일 때의 값이에요"' : ''}>${liqTxt(p)}</td>
@@ -1069,7 +1346,7 @@ function renderHistory() {
   const list = [...S.history].sort((a, b) => b.at - a.at);
   const rows = list.map(h => h.type === 'deposit'
     ? `<tr><td>${fTime(h.at)}</td><td><b>${h.first ? '시작 자금' : '월급'}</b></td><td class="note" colspan="3">${h.first ? '처음 받은 가상 돈' : (new Date(h.at).getMonth() + 1) + '월 가상 월급'}</td><td><span class="tag pay">입금</span></td><td class="ok">+${fUsd(h.amount)}</td></tr>`
-    : `<tr><td>${fTime(h.at)}</td><td>${BY_COIN[h.coin]?.name || tick(h.coin)}</td>
+    : `<tr><td>${fTime(h.at)}</td><td>${nameOf(h.coin)}</td>
       <td><span class="side ${h.dir > 0 ? 'L' : 'S'}">${h.dir > 0 ? '롱' : '숏'} ${h.lev}배</span> <span class="tag">${modeName(h.mode)}</span></td><td>${fUsd(h.size * h.entry)}</td>
       <td>${fPx(h.entry)} → ${fPx(h.exit)}</td><td><span class="tag ${/청산/.test(h.reason) ? 'liq' : ''}">${h.reason}</span></td>
       <td class="${cls(h.realized)}">${fUsd(h.realized, true)}</td></tr>`);
@@ -1088,7 +1365,7 @@ function renderEquity() {
   $('riskTxt').textContent = isFinite(r) ? (r * 100).toFixed(1) + '%' : '–';
   $('riskTxt').className = 'num ' + (r >= .8 ? 'up' : r >= .5 ? 'warn-t' : '');
 }
-function renderAll() { renderPositions(); renderHistory(); renderEquity(); renderOrderSummary(); }
+function renderAll() { renderPositions(); renderHistory(); renderEquity(); renderOrderSummary(); okx.sync(); }
 
 let lastFrame = 0, pending = false;
 function onPrices() {
@@ -1096,7 +1373,7 @@ function onPrices() {
   if (pending) return; pending = true;
   requestAnimationFrame(() => {
     pending = false; const t = performance.now(); if (t - lastFrame < 250) return; lastFrame = t;
-    renderPositions(); renderEquity(); updateLiqLine(); renderBoard(); if (!$('picker').hidden) renderPicker();
+    renderPositions(); renderEquity(); updateLiqLine(); renderBoard(); renderPicker();
   });
 }
 
@@ -1161,7 +1438,7 @@ async function fetchBoard(full) {
     board.err = ''; board.loaded = true;
   } catch (e) { board.err = '순위를 불러오지 못했어요. 잠시 뒤에 다시 시도해요.'; }
   finally { board.loading = false; }
-  renderBoard(true);
+  okx.sync(); renderBoard(true);
 }
 // 한 사람의 지금 총자산: 그 사이 들어올 월급을 더하고, 지금 시세로 평가손익과 청산 여부를 어림해요
 function valueOf(st) {
@@ -1251,14 +1528,19 @@ setInterval(() => {
 setInterval(sendReport, 60e3);
 
 // ───────────────────────── 만약 그때 샀다면 ─────────────────────────
+function fillWhatIf() {
+  const v = $('wfMkt').value;
+  $('wfMkt').innerHTML = GROUPS.map(g => { const ms = MARKETS.filter(m => m.group === g); return ms.length ? `<optgroup label="${g}">` + ms.map(m => `<option value="${m.coin}">${m.name}${m.name === tick(m.coin) ? '' : ' (' + tick(m.coin) + ')'}${m.okx ? ' · OKX' : ''}</option>`).join('') + '</optgroup>' : ''; }).join('');
+  if (v && BY_COIN[v]) $('wfMkt').value = v;
+}
 function setupWhatIf() {
-  $('wfMkt').innerHTML = MARKETS.map(m => `<option value="${m.coin}">${m.name} (${tick(m.coin)})</option>`).join('');
+  fillWhatIf();
   const d = new Date(); d.setFullYear(d.getFullYear() - 1); $('wfDate').value = d.toISOString().slice(0, 10);
   $('wfDate').max = new Date().toISOString().slice(0, 10);
   $('wfForm').addEventListener('submit', async e => {
     e.preventDefault();
     const coin = $('wfMkt').value, amt = Math.max(1, +$('wfAmt').value || 1000), dir = +$('wfSide').value;
-    const lev = clamp(Math.round(+$('wfLev').value || 1), 1, info[coin].maxLev); $('wfLev').value = lev;
+    const lev = clamp(Math.round(+$('wfLev').value || 1), 1, info[coin]?.maxLev || 20); $('wfLev').value = lev;
     const start = Date.parse($('wfDate').value + 'T00:00:00Z'); if (!isFinite(start)) return toast('날짜를 골라 주세요.');
     $('wfRun').disabled = true; $('wfOut').innerHTML = '<p class="wf-headline muted">계산하는 중…</p>';
     try {
@@ -1271,9 +1553,9 @@ function setupWhatIf() {
         if (k !== first) { const worst = dir > 0 ? k.l : k.h; if (dir > 0 ? worst <= liq : worst >= liq) { dead = k; path.push({ time: Math.floor(k.t / 1000), value: 0 }); break; } }
         path.push({ time: Math.floor(k.t / 1000), value: Math.max(0, amt + (k.c - entry) * size * dir) });
       }
-      const nowPx = markOf(coin) || ks.at(-1).c, m = BY_COIN[coin];
+      const nowPx = markOf(coin) || ks.at(-1).c;
       const late = first.t > start + 864e5 ? `<br><span class="muted" style="font-size:13px">이 종목 자료는 ${fDate(first.t)}부터 있어서 그날로 계산했어요.</span>` : '';
-      const what = `${fDate(first.t)}에 <b>${fUsd(amt)}</b> USDC로 ${m.name} ${lev > 1 ? lev + '배 ' : ''}${dir > 0 ? '롱' : '숏'}이었다면`;
+      const what = `${fDate(first.t)}에 <b>${fUsd(amt)}</b> USDC로 ${nameOf(coin)} ${lev > 1 ? lev + '배 ' : ''}${dir > 0 ? '롱' : '숏'}이었다면`;
       let html;
       if (dead) {
         html = `<p class="wf-headline">${what}, <b class="${cls(-1)}">${fDate(dead.t)}에 청산</b>돼서 넣은 돈을 모두 잃었어요.${late}</p>`;
@@ -1304,9 +1586,14 @@ function drawWhatIf(path, hold, dead) {
 }
 
 // ───────────────────────── 이벤트 ─────────────────────────
-$('mktBtn').addEventListener('click', e => { e.stopPropagation(); const open = $('picker').hidden; $('picker').hidden = !open; $('mktBtn').setAttribute('aria-expanded', open); if (open) renderPicker(); });
-$('picker').addEventListener('click', e => { const b = e.target.closest('[data-coin]'); if (!b) return; $('picker').hidden = true; $('mktBtn').setAttribute('aria-expanded', false); selectMarket(b.dataset.coin); });
-document.addEventListener('click', e => { if (!$('picker').hidden && !e.target.closest('#picker')) { $('picker').hidden = true; $('mktBtn').setAttribute('aria-expanded', false); } });
+$('mktBtn').addEventListener('click', e => { e.stopPropagation(); openPicker($('picker').hidden); });
+$('pickList').addEventListener('click', e => { const b = e.target.closest('[data-coin]'); if (!b) return; openPicker(false); selectMarket(b.dataset.coin); });
+$('pickQ').addEventListener('input', () => { renderPicker(true); $('picker').scrollTop = 0; });
+$('pickQ').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { openPicker(false); $('mktBtn').focus(); }
+  if (e.key === 'Enter') { e.preventDefault(); const m = pickMatches()[0]; if (m) { openPicker(false); selectMarket(m.coin); } }
+});
+document.addEventListener('click', e => { if (!$('picker').hidden && !e.target.closest('#picker')) openPicker(false); });
 $('ivSeg').addEventListener('click', e => { const b = e.target.closest('[data-iv]'); if (b) setInterval_(b.dataset.iv); });
 $('bookSeg').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; document.querySelectorAll('#bookSeg button').forEach(x => x.setAttribute('aria-pressed', x === b)); $('bookView').hidden = b.dataset.v !== 'book'; $('tradesView').hidden = b.dataset.v !== 'trades'; });
 $('levRange').addEventListener('input', () => { $('levNum').value = $('levRange').value; renderOrderSummary(); });
@@ -1337,7 +1624,7 @@ $('resetBtn').addEventListener('click', () => ask('처음부터 다시 할까요
 $('leaveBtn').addEventListener('click', () => ask('순위에서 나갈까요?', '서버에 있는 내 닉네임과 기록이 지워져요. 이 브라우저의 거래 기록은 그대로예요. 다시 참가하면 새로 등록돼요.', '나가기', leaveBoard));
 $('modalNo').addEventListener('click', () => { $('modal').hidden = true; });
 $('modalYes').addEventListener('click', () => { $('modal').hidden = true; const f = modalAct; modalAct = null; f && f(); });
-$('retryBtn').addEventListener('click', () => { feed.stop(); feed.mode = 'live'; feed.retry = 0; sim.timer && clearInterval(sim.timer); if (S.sim) S = load(); catching = true; $('netBanner').hidden = true; renderAll(); boot(); });
+$('retryBtn').addEventListener('click', () => { feed.stop(); feed.mode = 'live'; feed.retry = 0; sim.timer && clearInterval(sim.timer); if (S.sim) S = load(); catching = true; $('netBanner').hidden = true; boot(); });
 $('simBtn').addEventListener('click', goSim);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); else catchUp(); });
 setInterval(save, 15000);
@@ -1346,18 +1633,18 @@ window.addEventListener('resize', () => renderBook());
 
 // ───────────────────────── 시작 ─────────────────────────
 async function boot() {
-  try { await loadMeta(); }
+  try { await loadMarkets(); }
   catch (e) { feed.fail(); setFeed('wait'); return; }
-  feed.sub({ type: 'allMids' }); feed.sub({ type: 'allMids', dex: 'xyz' });
+  HL_DEXES.forEach(d => feed.sub(d ? { type: 'allMids', dex: d } : { type: 'allMids' }));
   feed.connect();
   let saved = 'BTC'; try { saved = localStorage.getItem('mock24.coin') || 'BTC'; } catch (e) {}
   await selectMarket(saved, true);
   await catchUp();
   if (boardOn()) fetchBoard(true);
 }
-makeChart(); setupWhatIf(); renderAll(); renderQuote(); renderBoard(true);
+makeChart(); setupWhatIf(); renderPositions(); renderHistory(); renderEquity(); renderOrderSummary(); renderQuote(); renderBoard(true);
 boot();
-window.__mock24 = { board, me: () => me, snapshot, valueOf, fetchBoard, state: () => S, setState: s => { S = s; }, info, mids, cur, feed, markOf, placeOrder, manualClose, checkTriggers, checkPayday, catchUp, crossState, liqOf, account, liqPrice, save, load, isCatching: () => catching };
+window.__mock24 = { okx, MARKETS, BY_COIN, NAMES, loadMarkets, selectMarket, board, me: () => me, snapshot, valueOf, fetchBoard, state: () => S, setState: s => { S = s; }, info, mids, cur, feed, markOf, placeOrder, manualClose, checkTriggers, checkPayday, catchUp, crossState, liqOf, account, liqPrice, save, load, isCatching: () => catching };
 })();
 </script>
 </body>
