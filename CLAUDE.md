@@ -5,6 +5,7 @@
 
 ## 구조
 - `index.html` 하나에 화면·스타일·코드가 모두 있다. 빌드 과정 없음. GitHub Pages(main 브랜치, 루트)로 배포된다.
+- 설치형 웹앱(PWA, 2026-10-11 추가): `manifest.webmanifest`, `sw.js`, `icons/`(192·512, maskable, apple-touch-icon 180). 서비스 워커는 화면 탐색 요청만 network-first로 받고 마지막 화면을 캐시(`mock24-shell-v1`)해 오프라인일 때 보여 준다. 시세·순위 요청은 건드리지 않는다. `push`·`notificationclick` 처리기는 체결 알림용으로 미리 넣어 둠. 설치 안내 띠(`#installBanner`): 크롬은 `beforeinstallprompt`로 버튼, 아이폰 사파리는 '홈 화면에 추가' 안내, 앱 안 브라우저·이미 설치한 앱에서는 안 보임, 닫으면 14일(`mock24.installHide`). 서비스 워커 시험은 https 가짜 주소로는 안 되므로 `localhost` 정적 서버 + Chromium `--proxy-bypass-list=localhost`로 한다.
 - 차트: TradingView lightweight-charts 4.2.0 (unpkg에서 버전 고정해 불러옴).
 - 시세: Hyperliquid 공개 API, 키 없음.
   - REST `POST https://api.hyperliquid.xyz/info` (`metaAndAssetCtxs`, `allMids`, `l2Book`, `candleSnapshot`)

@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>24시 모의선물</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131820" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="모의선물">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
@@ -278,6 +286,11 @@ td.note { text-align: left; font-family: var(--font-ui); color: var(--muted); }
   <p><b>앱 안의 브라우저(카카오톡 등)로 열었어요.</b> 거래 기록은 브라우저마다 따로 저장돼서, 여기서 한 거래는 크롬·사파리에서 보이지 않아요. 늘 같은 브라우저로 열어 주세요. 화면의 <b>⋮</b>(더보기)나 공유 버튼 → <b>다른 브라우저로 열기</b>.</p>
   <button class="btn-sm" id="inappOpen" hidden>기본 브라우저로 열기</button>
   <button class="btn-sm" id="inappClose">닫기</button>
+</div>
+<div class="banner" id="installBanner" hidden>
+  <p id="installTxt"></p>
+  <button class="btn-sm" id="installBtn" hidden>앱으로 설치</button>
+  <button class="btn-sm" id="installClose">닫기</button>
 </div>
 <div class="banner" id="awayBanner" hidden>
   <p id="awayTxt"></p>
@@ -2056,9 +2069,26 @@ $('moveBtn').addEventListener('click', showMove);
 $('moveBtn2').addEventListener('click', showMove);
 $('awayClose').addEventListener('click', () => { $('awayBanner').hidden = true; });
 // 카카오톡 같은 앱 안의 브라우저: 기록이 따로 저장된다고 알려 줘요
-if (/KAKAOTALK|Instagram|FBAN|FBAV|NAVER\(inapp|DaumApps|\bLine\//i.test(navigator.userAgent)) { $('inappBanner').hidden = false; $('inappOpen').hidden = !/KAKAOTALK/i.test(navigator.userAgent); }
+const UA = navigator.userAgent, INAPP = /KAKAOTALK|Instagram|FBAN|FBAV|NAVER\(inapp|DaumApps|\bLine\//i.test(UA);
+if (INAPP) { $('inappBanner').hidden = false; $('inappOpen').hidden = !/KAKAOTALK/i.test(UA); }
 $('inappOpen').addEventListener('click', () => { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href.split('#')[0]); });
 $('inappClose').addEventListener('click', () => { $('inappBanner').hidden = true; });
+// 앱으로 설치 (홈 화면 아이콘). 안드로이드·컴퓨터 크롬은 설치 버튼, 아이폰 사파리는 '홈 화면에 추가' 안내. 닫으면 14일 동안 안 보여요.
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const ios = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let installEvt = null;
+function installHidden() { try { return Date.now() - (+localStorage.getItem('mock24.installHide') || 0) < 14 * 864e5; } catch (e) { return false; } }
+function showInstall(html, btn) { if (standalone || INAPP || installHidden()) return; $('installTxt').innerHTML = html; $('installBtn').hidden = !btn; $('installBanner').hidden = false; }
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; showInstall('<b>앱으로 설치할 수 있어요.</b> 홈 화면 아이콘으로 주소창 없이 바로 열려요.', true); });
+$('installBtn').addEventListener('click', async () => {
+  if (!installEvt) return;
+  installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); installEvt = null; $('installBanner').hidden = true;
+  if (r?.outcome === 'accepted') toast('설치했어요. 이제 홈 화면의 모의선물 아이콘으로 열어 주세요.', 6000);
+});
+$('installClose').addEventListener('click', () => { $('installBanner').hidden = true; try { localStorage.setItem('mock24.installHide', String(Date.now())); } catch (_) {} });
+window.addEventListener('appinstalled', () => { $('installBanner').hidden = true; });
+if (ios && !standalone && /Safari\//.test(UA) && !/CriOS|FxiOS|EdgiOS/.test(UA)) showInstall('<b>앱처럼 쓰기:</b> 아래 <b>공유 버튼</b> → <b>홈 화면에 추가</b>. 아이폰은 홈 화면 앱의 기록이 사파리와 따로 저장될 수 있어요. 지금 기록은 <b>다른 기기·브라우저로 옮기기</b> 링크로 옮겨 주세요.', false);
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 $('joinForm').addEventListener('submit', joinBoard);
 $('sortSeg').addEventListener('click', e => { const b = e.target.closest('[data-sort]'); if (!b) return; board.sort = b.dataset.sort; document.querySelectorAll('#sortSeg button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderBoard(true); });
 let modalAct = null;
